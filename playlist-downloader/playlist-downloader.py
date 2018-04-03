@@ -1,19 +1,25 @@
+#youtube authentication
 import argparse
 import os
 import re
-
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 
+#html page reading and saving to file
 import urllib
 import fileinput
 
+#delays
 import time
 
+#exceptions
 import sys
+
+#editing file tags
+import eyed3
 
 API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
@@ -27,15 +33,43 @@ dosnames = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 
 invalidSongSizeMax = 50000 #byte
 
 
-class VideosList:
-    def __init__(self):
+class videosPlaylist:
+    def __init__(self, PlaylistId):
         self.nr = 0
         self.titles = []
         self.ids = []
+        self.songTitles = []
+        self.songAuthors = []
+        self.playlistId = PlaylistId
 
     def append(self, title, id):
         self.titles.append(title)
         self.ids.append(id)
+
+        authorEnd = title.find("-")
+        songAuthor, songTitle = "", ""
+        if (authorEnd != -1):
+            songAuthor = title[:authorEnd]
+            for i in range(authorEnd + 1, len(title)):
+                if title[i] in "()[]{}<>|-\\/:.;,_": 
+                   authorEnd = i
+                   break
+                if title[i] in "Ff":
+                    if title[i + 1] in "Tt":
+                        authorEnd = i
+                        break
+                    elif title[i + 1] in "Ee":
+                        if title[i + 2] in "Aa":
+                            if title[i + 3] in "Tt":
+                                authorEnd = i
+                                break
+                songTitle += title[i]
+        else:
+            songTitle = title
+
+
+        self.songAuthors.append(songAuthor.strip())
+        self.songTitles.append(songTitle.strip())
         self.nr += 1
 
     def all(self):
@@ -86,7 +120,7 @@ def authenticate(authenticationSuccess):
 def getVideos(Youtube, PlaylistId, retrievingSuccess):
     try:
         playlist = Youtube.playlistItems().list(playlistId=PlaylistId, part="snippet", maxResults=50)
-        videos = VideosList()
+        videos = videosPlaylist(PlaylistId)
         while playlist:
             playlistItems = playlist.execute()
             for video in playlistItems["items"]:
@@ -183,9 +217,11 @@ def main():
         fileDownloaded = open("downloaded.txt", "a")
         for i in range(0, videos.nr):
             if videos.ids[i] not in downloadedIds:
-                if downloadVideo(toMp3Path(videos.titles[i]), videos.ids[i], True):
+                videoPath = toMp3Path(videos.songAuthors[i] + " - " + videos.songTitles[i])
+                if downloadVideo(videoPath, videos.ids[i], True):
                     fileDownloaded.write(videos.ids[i] + "\n")
                     fileDownloaded.flush()
+
         fileDownloaded.close()
 
 
