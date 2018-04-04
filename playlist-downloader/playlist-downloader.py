@@ -16,9 +16,10 @@ import fileinput
 import time
 
 #exceptions
-from mutagen.easyid3 import EasyID3
+import sys
 
 #editing file tags
+from mutagen.easyid3 import EasyID3
 
 API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
