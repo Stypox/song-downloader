@@ -16,10 +16,9 @@ import fileinput
 import time
 
 #exceptions
-import sys
+from mutagen.easyid3 import EasyID3
 
 #editing file tags
-import eyed3
 
 API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
@@ -46,30 +45,71 @@ class videosPlaylist:
         self.titles.append(title)
         self.ids.append(id)
 
+        foundRemix = False
+        songAuthor, songTitle, tempRemixAuthor = "", "", ""
         authorEnd = title.find("-")
-        songAuthor, songTitle = "", ""
-        if (authorEnd != -1):
+        if (authorEnd == -1):
+            songTitle = title
+        else:
             songAuthor = title[:authorEnd]
-            for i in range(authorEnd + 1, len(title)):
-                if title[i] in "()[]{}<>|-\\/:.;,_": 
+            titleLength = len(title)
+            for i in range(authorEnd + 1, titleLength):
+                if title[i] in "()[]{}<>|-\\/:;,_": 
                    authorEnd = i
+                   if ("remix" in title.lower()):
+                       foundRemix = True
+                       tempRemixAuthor = ""
+                       remixPos = title.lower().find("remix")
+                       for r in range(i, len(title)):
+                           if r == remixPos:
+                               break
+                           tempRemixAuthor += title[r]
+                           if title[r] in "()[]{}<>|-\\/:;,_":
+                               tempRemixAuthor = ""
                    break
                 if title[i] in "Ff":
-                    if title[i + 1] in "Tt":
-                        authorEnd = i
-                        break
-                    elif title[i + 1] in "Ee":
-                        if title[i + 2] in "Aa":
-                            if title[i + 3] in "Tt":
-                                authorEnd = i
-                                break
+                    if i + 1 < titleLength and title[i + 1] in "Tt":
+                        if i + 2 < titleLength and title[i + 2] == ".":
+                            authorEnd = i
+                            if ("remix" in title.lower()):
+                                foundRemix = True
+                                tempRemixAuthor = ""
+                                remixPos = title.lower().find("remix")
+                                for r in range(i, len(title)):
+                                    if r == remixPos:
+                                        break
+                                    tempRemixAuthor += title[r]
+                                    if title[r] in "()[]{}<>|-\\/:;,_":
+                                        tempRemixAuthor = ""
+                            break
+                    elif i + 1 < titleLength and title[i + 1] in "Ee":
+                        if i + 2 < titleLength and title[i + 2] in "Aa":
+                            if i + 3 < titleLength and title[i + 3] in "Tt":
+                                if i + 4 < titleLength and title[i + 4] == ".":
+                                    authorEnd = i
+                                    if ("remix" in title.lower()):
+                                        foundRemix = True
+                                        tempRemixAuthor = ""
+                                        remixPos = title.lower().find("remix")
+                                        for r in range(i, len(title)):
+                                            if r == remixPos:
+                                                break
+                                            tempRemixAuthor += title[r]
+                                            if title[r] in "()[]{}<>|-\\/:;,_":
+                                                tempRemixAuthor = ""
+                                    break
                 songTitle += title[i]
+
+
+        if foundRemix:
+            if (tempRemixAuthor.strip() == ""):
+                self.songAuthors.append(songAuthor.strip() + " (remixed)")
+            else:
+                self.songAuthors.append(tempRemixAuthor.strip() + " (original by " + songAuthor.strip() + ")")
+            self.songTitles.append(songTitle.strip() + " (remix)")
         else:
-            songTitle = title
-
-
-        self.songAuthors.append(songAuthor.strip())
-        self.songTitles.append(songTitle.strip())
+            self.songAuthors.append(songAuthor.strip())
+            self.songTitles.append(songTitle.strip())
         self.nr += 1
 
     def all(self):
@@ -82,6 +122,14 @@ class videosPlaylist:
         return [self.titles[position], self.ids[position]]
 
 
+def setMp3Metadata(path, nr, title, author, playlistIdAsAlbum, videoIdAsAlbumArtist):
+    audio = EasyID3(path)
+    audio['tracknumber'] = str(nr)
+    audio['title'] = title
+    audio['artist'] = author
+    audio['album'] = "https://www.youtube.com/playlist?list={}".format(playlistIdAsAlbum)
+    audio['albumartist'] = "https://youtu.be/{}".format(videoIdAsAlbumArtist)
+    audio.save()
 def getPlaylistLink(readingSuccess):
     try:
         for line in open("playlist.txt", "r"): playlistLink = line
@@ -209,7 +257,7 @@ def main():
         print(downloadedIds, end = "\n\n\n")
         
 
-        if (len(downloadedIds) == videos.nr):
+        if (len(downloadedIds) == videos.nr): #keep or not
             print("Completed...")
             return
 
@@ -219,6 +267,7 @@ def main():
             if videos.ids[i] not in downloadedIds:
                 videoPath = toMp3Path(videos.songAuthors[i] + " - " + videos.songTitles[i])
                 if downloadVideo(videoPath, videos.ids[i], True):
+                    setMp3Metadata(videoPath, videos.nr - i + 1, videos.songTitles[i], videos.songAuthors[i], videos.playlistId, videos.ids[i])
                     fileDownloaded.write(videos.ids[i] + "\n")
                     fileDownloaded.flush()
 
