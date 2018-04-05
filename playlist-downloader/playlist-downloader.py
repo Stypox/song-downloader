@@ -48,15 +48,28 @@ class videosPlaylist:
 
         foundRemix = False
         songAuthor, songTitle, tempRemixAuthor = "", "", ""
-        authorEnd = title.find("-")
+        authorEnd = title.find(" - ")
+        if (authorEnd == -1):
+            authorEnd = title.find(" | ")
         if (authorEnd == -1):
             songTitle = title
         else:
             songAuthor = title[:authorEnd]
             titleLength = len(title)
-            for i in range(authorEnd + 1, titleLength):
-                if title[i] in "()[]{}<>|-\\/:;,_": 
-                   authorEnd = i
+            end = False
+            for i in range(authorEnd + 3, titleLength):
+                if title[i] in "()[]{}<>|-\\/:;,_":
+                   end = True
+                if title[i] in "Ff":
+                    if i + 1 < titleLength and title[i + 1] in "Tt":
+                        if i + 2 < titleLength and title[i + 2] == ".":
+                            end = True
+                    elif i + 1 < titleLength and title[i + 1] in "Ee":
+                        if i + 2 < titleLength and title[i + 2] in "Aa":
+                            if i + 3 < titleLength and title[i + 3] in "Tt":
+                                if i + 4 < titleLength and title[i + 4] == ".":
+                                    end = True
+                if end:
                    if ("remix" in title.lower()):
                        foundRemix = True
                        tempRemixAuthor = ""
@@ -65,40 +78,10 @@ class videosPlaylist:
                            if r == remixPos:
                                break
                            tempRemixAuthor += title[r]
-                           if title[r] in "()[]{}<>|-\\/:;,_":
+                           if (title[r] in "()[]{}<>|\\/;,") or (title[r] in "-_:" and r > 0 and r < titleLength and title[r + 1] == " " and title[r - 1] == " "):
                                tempRemixAuthor = ""
                    break
-                if title[i] in "Ff":
-                    if i + 1 < titleLength and title[i + 1] in "Tt":
-                        if i + 2 < titleLength and title[i + 2] == ".":
-                            authorEnd = i
-                            if ("remix" in title.lower()):
-                                foundRemix = True
-                                tempRemixAuthor = ""
-                                remixPos = title.lower().find("remix")
-                                for r in range(i, len(title)):
-                                    if r == remixPos:
-                                        break
-                                    tempRemixAuthor += title[r]
-                                    if title[r] in "()[]{}<>|-\\/:;,_":
-                                        tempRemixAuthor = ""
-                            break
-                    elif i + 1 < titleLength and title[i + 1] in "Ee":
-                        if i + 2 < titleLength and title[i + 2] in "Aa":
-                            if i + 3 < titleLength and title[i + 3] in "Tt":
-                                if i + 4 < titleLength and title[i + 4] == ".":
-                                    authorEnd = i
-                                    if ("remix" in title.lower()):
-                                        foundRemix = True
-                                        tempRemixAuthor = ""
-                                        remixPos = title.lower().find("remix")
-                                        for r in range(i, len(title)):
-                                            if r == remixPos:
-                                                break
-                                            tempRemixAuthor += title[r]
-                                            if title[r] in "()[]{}<>|-\\/:;,_":
-                                                tempRemixAuthor = ""
-                                    break
+
                 songTitle += title[i]
 
 
@@ -124,13 +107,13 @@ class videosPlaylist:
 
 
 def setMp3Metadata(path, nr, title, author, playlistIdAsAlbum, videoIdAsAlbumArtist):
-    audio = EasyID3(path)
-    audio['tracknumber'] = str(nr)
-    audio['title'] = title
-    audio['artist'] = author
-    audio['album'] = "https://www.youtube.com/playlist?list={}".format(playlistIdAsAlbum)
-    audio['albumartist'] = "https://youtu.be/{}".format(videoIdAsAlbumArtist)
-    audio.save()
+    songFile = EasyID3(path)
+    songFile['tracknumber'] = str(nr)
+    songFile['title'] = title
+    songFile['artist'] = author
+    songFile['album'] = "https://www.youtube.com/playlist?list={}".format(playlistIdAsAlbum)
+    songFile['albumartist'] = "https://youtu.be/{}".format(videoIdAsAlbumArtist)
+    songFile.save()
 def getPlaylistLink(readingSuccess):
     try:
         for line in open("playlist.txt", "r"): playlistLink = line
@@ -187,7 +170,9 @@ def getVideos(Youtube, PlaylistId, retrievingSuccess):
         retrievingSuccess.append("An error occurred while retrieving videos from playlist ({}): {}".format(PlaylistId, e))
         return False
 
-def toMp3Path(path):
+def toMp3Path(author, title):
+    if (author == ""): path = title
+    else: path = author + " - " + title
     final = ""
     for letter in path:
         if letter not in '<>:"/\|?*':
@@ -203,40 +188,58 @@ def downloadPage(link):
     data = urllib.request.urlopen(linkHeader).read()
     return data
 def downloadVideo(path, id, Print = False):
-    if Print: print (path)
-    infoLink = "https://www.convertmp3.io/download/?video=https://www.youtube.com/watch?v={}".format(id)
-    infoData = str(downloadPage(infoLink))
-    linkPosition = infoData.find("/download/get/?i=")
-    videoLink = "https://www.convertmp3.io{}".format(infoData[linkPosition:linkPosition+68])
+    try:
+        if Print: print (path)
+        infoLink = "https://www.convertmp3.io/download/?video=https://www.youtube.com/watch?v={}".format(id)
+        infoData = str(downloadPage(infoLink))
+        linkPosition = infoData.find("/download/get/?i=")
+        videoLink = "https://www.convertmp3.io{}".format(infoData[linkPosition:linkPosition+68])
 
 
-    if videoLink == "https://www.convertmp3.io":
-        if Print: print("ERROR")
+        if videoLink == "https://www.convertmp3.io":
+            if Print: print("An error occurred: cannot find a download link\n")
+            file = open(path, "wb")
+            file.write(infoData.encode())
+            file.close()
+            return False
+        
+        
+        if Print: print(videoLink)
         file = open(path, "wb")
-        file.write(infoData.encode())
-        file.close()
-        return False
-        
-        
-    if Print: print(videoLink)
-    file = open(path, "wb")
-    videoData = downloadPage(videoLink)
-
-    if len(videoData) < invalidSongSizeMax:
-        if Print: print("Not converted. Trying again.")
-        time.sleep(5)
         videoData = downloadPage(videoLink)
 
         if len(videoData) < invalidSongSizeMax:
-            if Print: print("ERROR")
-            file.write(videoData)
-            file.close()
-            return False
-        elif Print: print("Converted!")
+            if Print: print("Not converted. Trying again in 10 seconds.")
+            time.sleep(10)
+            videoData = downloadPage(videoLink)
 
-    file.write(videoData)
-    file.close()
-    return True
+            if len(videoData) < invalidSongSizeMax:
+                file.write(videoData)
+                file.close()
+                try: EasyID3(path)
+                except ValueError as e:
+                    if Print: print("A download error occurred: the downloaded data is invalid\n")
+                    return False
+                if Print: print("Converted!")
+                return True
+            elif Print: print("Converted!")
+
+        file.write(videoData)
+        file.close()
+        if Print: print()
+        return True
+        
+    except HttpError as e:
+        if Print: print("An HTTP error ({}) occurred: {}\n".format(e.resp.status, e.content))
+        return False
+    except ValueError as e:
+        if Print: print("A value error occurred: {}\n".format(repr(e)))
+        return False
+    except:
+        if Print:
+            e = sys.exc_info()[0]
+            print("An error occurred: {}\n".format(e))
+        return False
 
 
 def main():
@@ -265,10 +268,12 @@ def main():
 
         fileDownloaded = open("downloaded.txt", "a")
         for i in range(0, videos.nr):
-            if videos.ids[i] not in downloadedIds:
-                videoPath = toMp3Path(videos.songAuthors[i] + " - " + videos.songTitles[i])
+            videoPath = toMp3Path(videos.songAuthors[i], videos.songTitles[i])
+            if videos.ids[i] in downloadedIds:
+                setMp3Metadata(videoPath, videos.nr - i, videos.songTitles[i], videos.songAuthors[i], videos.playlistId, videos.ids[i])
+            else:
                 if downloadVideo(videoPath, videos.ids[i], True):
-                    setMp3Metadata(videoPath, videos.nr - i + 1, videos.songTitles[i], videos.songAuthors[i], videos.playlistId, videos.ids[i])
+                    setMp3Metadata(videoPath, videos.nr - i, videos.songTitles[i], videos.songAuthors[i], videos.playlistId, videos.ids[i])
                     fileDownloaded.write(videos.ids[i] + "\n")
                     fileDownloaded.flush()
 
@@ -277,13 +282,13 @@ def main():
 
         print("Restarting in 5 seconds", end = "\r")
         time.sleep(1)
-        print("Restarting in 4 seconds", end = "\r")
+        print("Restarting in 4", end = "\r")
         time.sleep(1)
-        print("Restarting in 3 seconds", end = "\r")
+        print("Restarting in 3", end = "\r")
         time.sleep(1)
-        print("Restarting in 2 seconds", end = "\r")
+        print("Restarting in 2", end = "\r")
         time.sleep(1)
-        print("Restarting in 1 seconds", end = "\r")
+        print("Restarting in 1", end = "\r")
         time.sleep(1)
         print("Restarting...          ")
 
