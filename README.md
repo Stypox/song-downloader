@@ -1,6 +1,6 @@
 ## The tool
 ### Downloads an entire youtube playlist in mp3 format.
-###### I downloaded my ~145 songs playlist and it worked fine except for one song (ConvertMp3 returns some HTML instead of an mp3 file, for some unknown reason).  
+###### I downloaded my ~145 songs playlist and it worked fine except for one song (ConvertMp3 fails to download the video).  
   
 #### Here is the process:  
 
