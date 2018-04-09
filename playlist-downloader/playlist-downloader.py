@@ -279,12 +279,14 @@ def main():
         for i in range(0, videos.nr):
             videoPath = toMp3Path(videos.songAuthors[i], videos.songTitles[i])
             if videos.ids[i] in downloadedIds:
-                setMp3Metadata(videoPath, videos.nr - i, videos.songTitles[i], videos.songAuthors[i], videos.playlistId, videos.ids[i])
+                setMp3Metadata(videoPath, i + 1, videos.songTitles[i], videos.songAuthors[i], videos.playlistId, videos.ids[i])
             else:
                 if downloadVideo(videoPath, videos.ids[i], True):
-                    setMp3Metadata(videoPath, videos.nr - i, videos.songTitles[i], videos.songAuthors[i], videos.playlistId, videos.ids[i])
+                    setMp3Metadata(videoPath, i + 1, videos.songTitles[i], videos.songAuthors[i], videos.playlistId, videos.ids[i])
                     fileDownloaded.write(videos.ids[i] + "\n")
                     fileDownloaded.flush()
+                else:
+                    os.remove(videoPath)
         fileDownloaded.close()
 
         for i in range(0, TIME_BEFORE_RESTARTING):
