@@ -87,3 +87,4 @@ ipch/
 
 *.txt
 *.mp3
+.vscode/
