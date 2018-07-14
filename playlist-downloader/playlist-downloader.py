@@ -3,19 +3,15 @@
 #misc
 import os
 import sys
+import time
 
 #youtube authentication
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-#html page reading and saving to file
+#html page reading, saving to file and editing mp3 tags
 import urllib.request
 import fileinput
-
-#delays
-import time
-
-#editing file tags
 from mutagen.easyid3 import EasyID3
 
 #regex to parse video titles
@@ -34,11 +30,6 @@ HEADERS = {
 	"Connection": "keep-alive"
 }
 
-INVALID_FILENAME_CHARS = "<>:\"/\\|?*"
-VALID_CHARS_MIN = 31 #char 31
-DOS_NAMES = ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"]
-INVALID_SONG_NAME = "invalid_song_name.mp3"
-
 VIDEO_ID_LEN = 11
 PLAYLIST_ID_LEN = 34
 
@@ -46,7 +37,6 @@ DEVELOPER_KEY_FILE_NAME = "playlist-downloader-devkey.txt"
 IDS_FILE_NAME = "playlist-downloader-ids.txt"
 
 TIME_PAUSE_IF_ERROR = 10 #seconds
-TIME_BEFORE_RESTARTING = 30 #seconds
 
 
 def authenticateYt():
@@ -78,7 +68,7 @@ class Song:
 		self.filename = ""
 
 		self.parseTitle(videoTitle)
-		self.composeFilename()
+		self.composeFilename(videoTitle)
 	def parseTitle(self, videoTitle):
 		#finds the artist
 		artistEndMatch = re.search("([%s] )|( [%s] )" % (reEsc(":"), reEsc("-_|<>^")), videoTitle)
@@ -117,20 +107,16 @@ class Song:
 		featMatch = re.search("[;,]?[ ][Ff]([Ee][Aa])?[Tt]", self.remixer)
 		if featMatch is not None:
 			self.remixer = self.remixer[:featMatch.start()]
-	def composeFilename(self):
-		tmpFilename = ""
-		if self.artist == "":
-			tmpFilename = self.title
-		else:
-			if self.remixer == "":
-				tmpFilename = "%s - %s" % (self.artist, self.title)
-			else:
-				tmpFilename = "%s (original by %s) - %s (remix)" % (self.remixer, self.artist, self.title)
-		for letter in tmpFilename:
-			if letter not in INVALID_FILENAME_CHARS:
-				if ord(letter) > VALID_CHARS_MIN:
+	def composeFilename(self, videoTitle):
+		Song.composeFilename.invalidChars = "<>:\"/\\|?*"
+		Song.composeFilename.validCharsMin = 31 #chr(31)
+		Song.composeFilename.dosNames = ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"]
+
+		for letter in videoTitle:
+			if letter not in Song.composeFilename.invalidChars:
+				if ord(letter) > Song.composeFilename.validCharsMin:
 					self.filename += letter
-		if self.filename == "" or self.filename in DOS_NAMES:
+		if self.filename == "" or self.filename in Song.composeFilename.dosNames:
 			self.filename = Song.invalidFilename
 		else:
 			self.filename = self.filename + ".mp3"
@@ -230,7 +216,8 @@ class Video:
 	def saveMetadata(self, playlistId = None):
 		try: songFile = EasyID3(self.directory + self.song.filename)
 		except: return False
-		songFile["tracknumber"] = str(self.playlistIndex)
+		if self.playlistIndex is not None:
+			songFile["tracknumber"] = str(self.playlistIndex)
 		songFile["title"] = self.song.title
 		songFile["artist"] = self.song.artist
 		if playlistId is not None:
@@ -326,7 +313,6 @@ def parseArguments(tmpArgs, arguments):
 			raise RuntimeError("Invalid arguments (argument 1 of list \"%s\" is neither a video nor a playlist id) \"%s\"" % (tmpArgs, arguments))
 	else:
 		raise RuntimeError("Invalid arguments (list of arguments \"%s\" too long) \"%s\"" % (tmpArgs, arguments))
-
 def main(arguments):
 	Video.ytAgent = Playlist.ytAgent = authenticateYt()
 	if Playlist.ytAgent is None:
@@ -382,8 +368,6 @@ def main(arguments):
 	for playlist in playlists:
 		playlist.loadData()
 		playlist.download()
-
-
 
 
 if __name__ == "__main__":
