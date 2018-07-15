@@ -218,8 +218,12 @@ class Video:
 		except: return False
 		if self.playlistIndex is not None:
 			songFile["tracknumber"] = str(self.playlistIndex)
-		songFile["title"] = self.song.title
-		songFile["artist"] = self.song.artist
+		if self.song.remixer == "":
+			songFile["title"] = self.song.title
+			songFile["artist"] = self.song.artist
+		else:
+			songFile["title"] = "%s (remix)" % self.song.title
+			songFile["artist"] = "%s (original by %s)" % (self.song.remixer, self.song.artist)
 		if playlistId is not None:
 			songFile["album"] = playlistId
 		songFile["albumartist"] = self.Id #TODO not good
