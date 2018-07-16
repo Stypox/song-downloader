@@ -16,23 +16,23 @@ Yes, **"albumartist" is the video id**. "tracknumber" is **1** because the video
 # Usage
 Choose some videos and playlists to **download** (for example [this video](https://www.youtube.com/watch?v=z-teFykRk0Y) and [this playlist](https://www.youtube.com/playlist?list=PLR0fgOhCSN8ilC2GWuPkipy8FRNp-m-7C)) and **extract their ids** (in this case "z-teFykRk0Y" and "PLR0fgOhCSN8ilC2GWuPkipy8FRNp-m-7C").  
 
-Then there are **two ways** to provide the script with those ids: using a **file** or using **command line arguments**:
+Then there are **two ways** to provide the script with those ids: using a **file** or using **command line arguments** (all parameters between **\[square brackets\]** are to be considered optional; **\|** means **or**):
 
 ## Saving ids in file
 In the directory the script is in create a file named ``playlist-downloader-ids.txt``. In that file you can insert the **videos/playlists to be downloaded** this way:
 
-    ID (opt)DIRECTORY
-    ID (opt)DIRECTORY
+    ID [DIRECTORY]
+    ID [DIRECTORY]
     ...
-Here "ID" represents the playlist or video id, and "DIRECTORY" represents the directory in which to save the song(s). "DIRECTORY" is **optional** and defaults to ``./`` for videos and ``./ID/`` for playlists. Save the file and run the script. In this case the file could be:
+Here "ID" represents the playlist or video id, and "DIRECTORY" represents the directory in which to save the song(s). "DIRECTORY" is **optional** and defaults to ``./`` for videos and ``./ID/`` for playlists. **Save the file and run** the script. In this case the file could be:
 
     z-teFykRk0Y ./my_songs/
     PLR0fgOhCSN8ilC2GWuPkipy8FRNp-m-7C
 
 ## Passing ids as command line arguments
-**Open a terminal** and navigate to the "DIRECTORY" the python script is in (run ``cd DIRECTORY``). Then run ``python3 FILENAME ARGUMENTS`` (*) replacing "FILENAME" with the name of the script. "ARGUMENTS" is the **list of videos/playlists to be downloaded** and must be formatted this way:
+**Open a terminal** and navigate to the "DIRECTORY" the python script is in (run ``cd DIRECTORY``). Then run ``python3 FILENAME [-d | --delete] ARGUMENTS`` (*) replacing "FILENAME" with the name of the script. -d (or --delete, use the one you prefer) is **optional**: when used the script will **remove songs** in the playlist directory not belonging to it. "ARGUMENTS" is the **list of videos/playlists to be downloaded** and must be formatted this way:
   
-    ID (opt)DIRECTORY - ID (opt)DIRECTORY - ... - ID (opt)DIRECTORY
+    ID [DIRECTORY] - ID [DIRECTORY] - ... - ID [DIRECTORY]
 Here "ID" represents the playlist or video id, and "DIRECTORY" represents the directory in which to save the song(s). "DIRECTORY" is **optional** and defaults to ``./`` for videos and ``./ID/`` for playlists. For example:
 
     > cd C:/playlist-downloader/

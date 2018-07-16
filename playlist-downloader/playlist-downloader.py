@@ -38,6 +38,8 @@ IDS_FILE_NAME = "playlist-downloader-ids.txt"
 
 TIME_PAUSE_IF_ERROR = 10 #seconds
 
+DELETE_ARGUMENTS = ["-d", "--delete"]
+
 
 def authenticateYt():
 	try:
@@ -232,7 +234,7 @@ class Video:
 class Playlist:
 	ytAgent = None
 
-	def __init__(self, Id, directory = None):
+	def __init__(self, Id, delete, directory = None):
 		self.nr = 0
 		self.videos = []
 		if len(Id) == 34:
@@ -240,6 +242,7 @@ class Playlist:
 		else:
 			print("Playlist id must be 34 chars, not %i: %s" % (len(Id), Id))
 			self.Id = None
+		self.delete = delete
 		if directory is None:
 			self.directory = "./" + Id + "/"
 		else:
@@ -284,7 +287,7 @@ class Playlist:
 				songFile = EasyID3(self.directory + filename)
 				directoryFilenames[songFile["albumartist"][0]] = filename
 			except: continue
-
+		
 		for video in self.videos:
 			video.updateFile(directoryFilenames)
 			if video.download():
@@ -294,16 +297,23 @@ class Playlist:
 					print("Failed to save metadata")
 			else:
 				print("Failed to download")
+		
+		if self.delete:
+			playlistIds = [video.Id for video in self.videos]
+			for fileId, filename in directoryFilenames.items():
+				if fileId not in playlistIds:
+					print("Removing song \"%s\" since its id \"%s\" doesn't refer to a video of the playlist \"%s\"." % (self.directory + filename, fileId, self.Id))
+					os.remove(self.directory + filename)
 
 
-def parseArguments(tmpArgs, arguments):
+def parseArguments(tmpArgs, arguments, delete):
 	if len(tmpArgs) == 0:
 		return None
 	elif len(tmpArgs) == 1:
 		if len(tmpArgs[0]) == VIDEO_ID_LEN:
 			return Video(tmpArgs[0])
 		elif len(tmpArgs[0]) == PLAYLIST_ID_LEN:
-			return Playlist(tmpArgs[0])
+			return Playlist(tmpArgs[0], delete)
 		else:
 			raise RuntimeError("Invalid arguments (argument \"%s\" is neither a video nor a playlist id) \"%s\"" % (tmpArgs[0], arguments))
 	elif len(tmpArgs) == 2:
@@ -312,7 +322,7 @@ def parseArguments(tmpArgs, arguments):
 		if len(tmpArgs[0]) == VIDEO_ID_LEN:
 			return Video(tmpArgs[0], tmpArgs[1])
 		elif len(tmpArgs[0]) == PLAYLIST_ID_LEN:
-			return Playlist(tmpArgs[0], tmpArgs[1])
+			return Playlist(tmpArgs[0], delete, tmpArgs[1])
 		else:
 			raise RuntimeError("Invalid arguments (argument 1 of list \"%s\" is neither a video nor a playlist id) \"%s\"" % (tmpArgs, arguments))
 	else:
@@ -325,10 +335,14 @@ def main(arguments):
 	#arguments parsing
 	videos = []
 	playlists = []
-	if len(arguments) > 1:
+	args = arguments[1:]
+	delete = False
+	if len(args) > 0 and args[0] in DELETE_ARGUMENTS:
+		delete = True
+		args = args[1:]
+	if len(args) > 0:
 		print("Parsing command line arguments... ", end = "", flush = True)
 		tmpArgs = []
-		args = arguments[1:]
 		for arg in args:
 			if arg == "-":
 				downloader = parseArguments(tmpArgs, args)
@@ -339,7 +353,7 @@ def main(arguments):
 				tmpArgs = []
 			else:
 				tmpArgs.append(arg)
-		downloader = parseArguments(tmpArgs, args)
+		downloader = parseArguments(tmpArgs, args, delete)
 		if type(downloader) is Video:
 			videos.append(downloader)
 		elif type(downloader) is Playlist:
