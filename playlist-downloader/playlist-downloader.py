@@ -306,27 +306,27 @@ class Playlist:
 					os.remove(self.directory + filename)
 
 
-def parseArguments(tmpArgs, arguments, delete):
-	if len(tmpArgs) == 0:
+def parseArgsList(args, allArgs, delete):
+	if len(args) == 0:
 		return None
-	elif len(tmpArgs) == 1:
-		if len(tmpArgs[0]) == VIDEO_ID_LEN:
-			return Video(tmpArgs[0])
-		elif len(tmpArgs[0]) == PLAYLIST_ID_LEN:
-			return Playlist(tmpArgs[0], delete)
+	elif len(args) == 1:
+		if len(args[0]) == VIDEO_ID_LEN:
+			return Video(args[0])
+		elif len(args[0]) == PLAYLIST_ID_LEN:
+			return Playlist(args[0], delete)
 		else:
-			raise RuntimeError("Invalid arguments (argument \"%s\" is neither a video nor a playlist id) \"%s\"" % (tmpArgs[0], arguments))
-	elif len(tmpArgs) == 2:
-		if not os.path.isdir(tmpArgs[1]):
-			print("%s is not an existing directory, it will be cerated" % (tmpArgs[1]))
-		if len(tmpArgs[0]) == VIDEO_ID_LEN:
-			return Video(tmpArgs[0], tmpArgs[1])
-		elif len(tmpArgs[0]) == PLAYLIST_ID_LEN:
-			return Playlist(tmpArgs[0], delete, tmpArgs[1])
+			raise RuntimeError("Invalid arguments (argument \"%s\" is neither a video nor a playlist id): \"%s\"" % (args[0], allArgs))
+	elif len(args) == 2:
+		if not os.path.isdir(args[1]):
+			print("%s is not an existing directory, it will be cerated" % (args[1]))
+		if len(args[0]) == VIDEO_ID_LEN:
+			return Video(args[0], args[1])
+		elif len(args[0]) == PLAYLIST_ID_LEN:
+			return Playlist(args[0], delete, args[1])
 		else:
-			raise RuntimeError("Invalid arguments (argument 1 of list \"%s\" is neither a video nor a playlist id) \"%s\"" % (tmpArgs, arguments))
+			raise RuntimeError("Invalid arguments (argument 1 of list \"%s\" is neither a video nor a playlist id): \"%s\"" % (args, allArgs))
 	else:
-		raise RuntimeError("Invalid arguments (list of arguments \"%s\" too long) \"%s\"" % (tmpArgs, arguments))
+		raise RuntimeError("Invalid arguments (list of arguments \"%s\" too long): \"%s\"" % (args, allArgs))
 def main(arguments):
 	Video.ytAgent = Playlist.ytAgent = authenticateYt()
 	if Playlist.ytAgent is None:
@@ -345,7 +345,7 @@ def main(arguments):
 		tmpArgs = []
 		for arg in args:
 			if arg == "-":
-				downloader = parseArguments(tmpArgs, args)
+				downloader = parseArgsList(tmpArgs, args, delete)
 				if type(downloader) is Video:
 					videos.append(downloader)
 				elif type(downloader) is Playlist:
@@ -353,7 +353,7 @@ def main(arguments):
 				tmpArgs = []
 			else:
 				tmpArgs.append(arg)
-		downloader = parseArguments(tmpArgs, args, delete)
+		downloader = parseArgsList(tmpArgs, args, delete)
 		if type(downloader) is Video:
 			videos.append(downloader)
 		elif type(downloader) is Playlist:
@@ -362,8 +362,12 @@ def main(arguments):
 	else:
 		print("Reading and parsing file %s... " % IDS_FILE_NAME, end = "", flush = True)
 		idsFile = open(IDS_FILE_NAME, "r")
-		for arg in idsFile:
-			downloader = parseArguments(arg.split(' '), arguments)
+		args = [line.strip() for line in idsFile]
+		if len(args) > 0 and args[0] in DELETE_ARGUMENTS:
+			delete = True
+			args = args[1:]
+		for arg in args:
+			downloader = parseArgsList(arg.split(' '), args, delete)
 			if type(downloader) is Video:
 				videos.append(downloader)
 			elif type(downloader) is Playlist:
@@ -373,6 +377,8 @@ def main(arguments):
 	print("Videos:", *videos, "- Playlists:", *playlists)
 
 	#downloading
+	if len(videos) == 0 and len(playlists) == 0:
+		print ("Nothing has been provided to download")
 	for video in videos:
 		video.loadData()
 		video.updateFile()

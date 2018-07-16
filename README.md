@@ -1,4 +1,4 @@
-# The tool
+# Playlist downloader
 ### Downloads an entire youtube playlist (or single videos) in **mp3 format**, **deducing** and saving **artist**, **name**, **remixer**, **tracknumber**... If the song has already been downloaded updates only its metadata.
 #### Uses the API of an online downloader ([ConvertMp3](https://convertmp3.io)) so **only the audio data is downloaded**.
 I downloaded a ~150 songs playlist and it worked fine. I also developed an [mp3-player](https://github.com/Stypox/mp3-player), that can play playlists in order.
@@ -36,7 +36,7 @@ Here "ID" represents the playlist or video id, and "DIRECTORY" represents the di
 Here "ID" represents the playlist or video id, and "DIRECTORY" represents the directory in which to save the song(s). "DIRECTORY" is **optional** and defaults to ``./`` for videos and ``./ID/`` for playlists. For example:
 
     > cd C:/playlist-downloader/
-    > python3 playlist-downloader.py z-teFykRk0Y ./my_songs/ - PLR0fgOhCSN8ilC2GWuPkipy8FRNp-m-7C
+    > python3 playlist-downloader.py --delete z-teFykRk0Y ./my_songs/ - PLR0fgOhCSN8ilC2GWuPkipy8FRNp-m-7C
 (*) Note that the command used for Python is **not always** ``python3``: it could be ``py`` or ``python`` too.
 
 ## Result
