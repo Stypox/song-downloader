@@ -1,3 +1,4 @@
-*.txt
 *.mp3
+playlist_downloader_temp_file.*
+
 .vscode/

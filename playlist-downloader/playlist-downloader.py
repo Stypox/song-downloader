@@ -1,64 +1,49 @@
 #!/usr/bin/env python3
+#TODO print more information (e.g. in Playlist.download()), add verbose mode and print an indicator for the type of information (info, warning, error)
+#TODO use multithreading to download and convert. i.e. after a download is finished: start another one AND, at the same time, convert the file.
+#TODO [look in Playlist.download()]
+#TODO [look in Video.saveMetadata()]
 
 #misc
 import os
 import sys
-import time
 
-#youtube authentication
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+#getting info and downloading
+import youtube_dl
 
-#html page reading, saving to file and editing mp3 tags
-import urllib.request
-import fileinput
+#saving/editing mp3 tags
 from mutagen.easyid3 import EasyID3
 
 #regex to parse video titles
 import re
 from re import escape as reEsc
 
-API_SERVICE_NAME = "youtube"
-API_VERSION = "v3"
-
-HEADERS = {
-	"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11",
-	"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-	"Accept-Charset": "ISO-8859-1,utf-8;q=0.7,*;q=0.3",
-	"Accept-Encoding": "none",
-	"Accept-Language": "en-US,en;q=0.8",
-	"Connection": "keep-alive"
-}
-
-VIDEO_ID_LEN = 11
-PLAYLIST_ID_LEN = 34
-
-DEVELOPER_KEY_FILE_NAME = "playlist-downloader-devkey.txt"
 IDS_FILE_NAME = "playlist-downloader-ids.txt"
-
-TIME_PAUSE_IF_ERROR = 10 #seconds
-
 DELETE_ARGUMENTS = ["-d", "--delete"]
 
+YDL_FILENAME = "playlist_downloader_temp_file.%(ext)s"
+YDL_OPTS = {
+	'outtmpl': YDL_FILENAME,
+	'format': 'bestaudio/best',
+	'postprocessors': [{
+		'key': 'FFmpegExtractAudio',
+		'preferredcodec': 'mp3',
+		'preferredquality': '192',
+	}],
+	'quiet': True
+}
+ydl = youtube_dl.YoutubeDL(YDL_OPTS)
 
-def authenticateYt():
-	try:
-		for line in open(DEVELOPER_KEY_FILE_NAME, "r"):
-			devKey = line
-		authentication = build(API_SERVICE_NAME, API_VERSION, developerKey = devKey)
-		return authentication
+def ensureValidDirectory(directory):
+	if directory is None:
+		return "./"	
+	if len(directory) > 0 and directory[-1] != "/":
+		directory += "/"
 
-	except HttpError as e:
-		print("An HTTP error (%s) occurred while authenticating: %s" % (e.resp.status, e.content))
-		return None
-	except FileNotFoundError as e:
-		print("File named \"%s\" containing a developer key doesn't exists" % DEVELOPER_KEY_FILE_NAME)
-		return None
-def downloadPage(link):
-	linkHeader = urllib.request.Request(link, headers=HEADERS)
-	data = urllib.request.urlopen(linkHeader).read()
-	return data
-
+	if not os.path.isdir(directory):
+		print("Creating directory \"%s\"" % directory)
+		os.makedirs(directory)
+	return directory
 
 class Song:
 	invalidFilename = "playlist-downloader-invalid-song-filename.mp3"
@@ -71,6 +56,7 @@ class Song:
 
 		self.parseTitle(videoTitle)
 		self.composeFilename(videoTitle)
+
 	def parseTitle(self, videoTitle):
 		#finds the artist
 		artistEndMatch = re.search("([%s] )|( [%s] )" % (reEsc(":"), reEsc("-_|<>^")), videoTitle)
@@ -127,45 +113,21 @@ class Song:
 		except: return False
 		return True
 class Video:
-	ytAgent = None
-	converterLink = "https://www.convertmp3.io/download/?video=https://www.youtube.com/watch?v={}"
-	emptyConverterLink = "https://www.convertmp3.io{}"
-
-	def __init__(self, Id, title = None, playlistIndex = None, directory = None):
-		self.Id = Id
-		self.title = title
-		
-		if directory is None:
-			directory = "./"
-		elif len(directory) > 0 and directory[-1] != "/":
-			directory += "/"
-		self.directory = directory
-
-		if title is None:
-			self.playlistIndex = None
-			self.song = None
-		else:
-			self.playlistIndex = playlistIndex
-			self.song = Song(title)
+	def __init__(self, info, directory, playlistIndex = None):
+		self.info = info
+		self.id = info['id']
+		self.title = info['title']
+		self.song = Song(self.title)
+		self.directory = ensureValidDirectory(directory)
+		self.inPlaylist = (playlistIndex is not None)
+		self.playlistIndex = playlistIndex
 	def __repr__(self):
 		if self.song is None:
-			return self.Id
+			return self.title + " (" + self.id + ")"
 		else:
 			return self.song.filename
-			
-	def loadData(self):
-		if self.song is not None:
-			raise RuntimeError("Error: trying to run loadData() on a video (id: %s) that already has data loaded (title: %s)" % (self.Id, self.title))
-		try:
-			ytVidResponse = Video.ytAgent.videos().list(id=self.Id, part="snippet").execute()
-			self.song = Song(ytVidResponse["items"][0]["snippet"]["title"])
-		except HttpError as e:
-			print("An HTTP error (%s) occurred while retrieving video title of %s: %s" % (e.resp.status, self.Id, e.content))
-			return False
-		return True
+
 	def updateFile(self, directoryFilenames = None):
-		if self.song is None:
-			raise RuntimeError("Error: trying to run updateFile() on a video (id: %s) with no data loaded" % self.Id)
 		if directoryFilenames is None:
 			files = os.listdir(self.directory)
 			for filename in files:
@@ -173,7 +135,7 @@ class Video:
 					songFile = EasyID3(self.directory + filename)
 				except: continue
 				try:
-					if songFile["albumartist"][0] == self.Id:
+					if songFile["albumartist"][0] == self.id:
 						if filename != self.song.filename:
 							print("Song %s changed name: renaming to %s" % (self.directory + filename, self.directory + self.song.filename))
 							os.rename(self.directory + filename, self.directory + self.song.filename)
@@ -181,43 +143,29 @@ class Video:
 				except KeyError: continue
 		else:
 			try:
-				if directoryFilenames[self.Id] != self.song.filename:
-					print("Song %s changed name: renaming to %s" % (self.directory + directoryFilenames[self.Id], self.directory + self.song.filename))
-					os.rename(self.directory + directoryFilenames[self.Id], self.directory + self.song.filename)
+				if directoryFilenames[self.id] != self.song.filename:
+					print("Song %s changed name: renaming to %s" % (self.directory + directoryFilenames[self.id], self.directory + self.song.filename))
+					os.rename(self.directory + directoryFilenames[self.id], self.directory + self.song.filename)
 			except KeyError: pass
-	def saveToFile(self, data):
-		songFile = open(self.directory + self.song.filename, "wb")
-		songFile.write(data)
-		songFile.close()
 	def download(self):
-		if self.song is None:
-			raise RuntimeError("Error: trying to download a video (id: %s) not belonging to a playlist before running loadData()" % self.Id)
 		if self.song.isValid(self.directory):
-			print("%s already downloaded to %s... " % (self.Id, self.directory + self.song.filename), end = "", flush=True)
-			return True
-		print("Downloading %s to %s... " % (self.Id, self.directory + self.song.filename), end = "", flush=True)
+			print("\"%s\" already downloaded." % self.song.filename)
+			return
 
-		infoLink = Video.converterLink.format(self.Id)
-		infoData = str(downloadPage(infoLink))
-		linkPosition = infoData.find("/download/get/?i=")
-		if linkPosition is -1:
-			self.saveToFile(infoData.encode())
-			return None
-
-		videoLink = Video.emptyConverterLink.format(infoData[linkPosition:linkPosition+68])
-		videoData = downloadPage(videoLink)
-		self.saveToFile(videoData)
-		
-		if self.song.isValid(self.directory):
-			return True
+		print("Downloading \"%s\"..." % self, flush=True)
+		if self.inPlaylist:
+			ydl.extract_info(self.id, download=True)
 		else:
-			time.sleep(TIME_PAUSE_IF_ERROR)
-			videoData = downloadPage(videoLink)
-			self.saveToFile(videoData)
-			return self.song.isValid(self.directory)
+			#info already downloaded, only processing is needed
+			ydl.process_ie_result(self.info, download=True)
+		os.rename(YDL_FILENAME % {'ext': 'mp3'}, self.directory + self.song.filename)
 	def saveMetadata(self, playlistId = None):
-		try: songFile = EasyID3(self.directory + self.song.filename)
-		except: return False
+		print("Saving metadata...", flush=True)
+		try:
+			songFile = EasyID3(self.directory + self.song.filename)
+		except:
+			print("Failed to save metadata")
+			return
 		if self.playlistIndex is not None:
 			songFile["tracknumber"] = str(self.playlistIndex)
 		if self.song.remixer == "":
@@ -228,124 +176,80 @@ class Video:
 			songFile["artist"] = "%s (original by %s)" % (self.song.remixer, self.song.artist)
 		if playlistId is not None:
 			songFile["album"] = playlistId
-		songFile["albumartist"] = self.Id #TODO not good
+		songFile["albumartist"] = self.id #TODO not good
 		songFile.save()
-		return True
 class Playlist:
-	ytAgent = None
+	delete = False
 
-	def __init__(self, Id, delete, directory = None):
-		self.nr = 0
+	def __init__(self, info, directory):
+		self.directory = ensureValidDirectory(directory)
+
 		self.videos = []
-		if len(Id) == 34:
-			self.Id = Id
-		else:
-			print("Playlist id must be 34 chars, not %i: %s" % (len(Id), Id))
-			self.Id = None
-		self.delete = delete
-		if directory is None:
-			self.directory = "./" + Id + "/"
-		else:
-			self.directory = directory
-			if self.directory[-1] != "/":
-				self.directory += "/"
+		playlistIndex = 0
+		for entry in info['entries']:
+			self.videos.append(Video(entry, self.directory, playlistIndex))
+			playlistIndex += 1
+
+		self.id = info['id']
+		self.title = info['title']		
 	def __getitem__(self, key):
 		return self.videos[key]
 	def __repr__(self):
 		if len(self.videos) == 0:
-			return self.Id
+			return self.title + " (" + self.id + ")"
 		else:
 			return [video.__repr__() for video in self.videos].__repr__()
 
-	def ready(self):
-		return Playlist.ytAgent is not None and self.Id is not None
-	def append(self, Id, title):
-		self.videos.append(Video(Id, title, len(self.videos), self.directory))
-	def loadData(self):
-		if not self.ready():
-			return False
-		try:
-			ytPlaylist = Playlist.ytAgent.playlistItems()
-			ytPlLister = ytPlaylist.list(playlistId=self.Id, part="snippet", maxResults=50)
-			while ytPlLister:
-				ytPlResponse = ytPlLister.execute()
-				for item in ytPlResponse["items"]:
-					self.append(item["snippet"]["resourceId"]["videoId"], item["snippet"]["title"])
-				ytPlLister = ytPlaylist.list_next(ytPlLister, ytPlResponse)
-		except HttpError as e:
-			print("An HTTP error (%s) occurred while retrieving videos from playlist (%s): %s" % (e.resp.status, self.Id, e.content))
-			return False
-		return True
 	def download(self):
-		if not os.path.exists(self.directory):
-			os.makedirs(self.directory)
-
-		directoryFilenames = dict()
+		#TODO do not try to rename / delete mp3's that do not belong to this playlist
+		directoryFilenames = {}
 		files = os.listdir(self.directory)
 		for filename in files:
 			try:
 				songFile = EasyID3(self.directory + filename)
 				directoryFilenames[songFile["albumartist"][0]] = filename
 			except: continue
-		
+
 		for video in self.videos:
 			video.updateFile(directoryFilenames)
-			if video.download():
-				if video.saveMetadata():
-					print("Done")
-				else:
-					print("Failed to save metadata")
-			else:
-				print("Failed to download")
-		
-		if self.delete:
-			playlistIds = [video.Id for video in self.videos]
+			video.download()
+			video.saveMetadata()
+
+		if Playlist.delete:
+			playlistIds = [video.id for video in self.videos]
 			for fileId, filename in directoryFilenames.items():
 				if fileId not in playlistIds:
-					print("Removing song \"%s\" since its id \"%s\" doesn't refer to a video of the playlist \"%s\"." % (self.directory + filename, fileId, self.Id))
+					print("Removing song \"%s\" since its id \"%s\" doesn't refer to a video of the playlist \"%s\"." % (self.directory + filename, fileId, self.id))
 					os.remove(self.directory + filename)
 
+def getDownloader(id, directory):
+	with ydl:
+		info = ydl.extract_info(id, download=False, process=False)
+		if 'entries' in info:
+			return Playlist(info, directory)
+		else:
+			return Video(info, directory)
 
-def parseArgsList(args, allArgs, delete):
+def parseArgsList(args, allArgs):
 	if len(args) == 0:
-		return None
-	elif len(args) == 1:
-		if len(args[0]) == VIDEO_ID_LEN:
-			return Video(args[0])
-		elif len(args[0]) == PLAYLIST_ID_LEN:
-			return Playlist(args[0], delete)
-		else:
-			raise RuntimeError("Invalid arguments (argument \"%s\" is neither a video nor a playlist id): \"%s\"" % (args[0], allArgs))
-	elif len(args) == 2:
-		if not os.path.isdir(args[1]):
-			print("%s is not an existing directory, it will be cerated" % (args[1]))
-		if len(args[0]) == VIDEO_ID_LEN:
-			return Video(args[0], args[1])
-		elif len(args[0]) == PLAYLIST_ID_LEN:
-			return Playlist(args[0], delete, args[1])
-		else:
-			raise RuntimeError("Invalid arguments (argument 1 of list \"%s\" is neither a video nor a playlist id): \"%s\"" % (args, allArgs))
-	else:
-		raise RuntimeError("Invalid arguments (list of arguments \"%s\" too long): \"%s\"" % (args, allArgs))
-def main(arguments):
-	Video.ytAgent = Playlist.ytAgent = authenticateYt()
-	if Playlist.ytAgent is None:
 		return
-
+	elif len(args) > 2:
+		raise RuntimeError("Invalid arguments (list of arguments \"%s\" too long): \"%s\"" % (args, allArgs))
+	return getDownloader(args[0], args[1] if len(args) == 2 else None)
+def main(arguments):
 	#arguments parsing
 	videos = []
 	playlists = []
 	args = arguments[1:]
-	delete = False
 	if len(args) > 0 and args[0] in DELETE_ARGUMENTS:
-		delete = True
+		Playlist.delete = True
 		args = args[1:]
 	if len(args) > 0:
-		print("Parsing command line arguments... ", end = "", flush = True)
+		print("Parsing command line arguments...")
 		tmpArgs = []
 		for arg in args:
 			if arg == "-":
-				downloader = parseArgsList(tmpArgs, args, delete)
+				downloader = parseArgsList(tmpArgs, args)
 				if type(downloader) is Video:
 					videos.append(downloader)
 				elif type(downloader) is Playlist:
@@ -353,26 +257,24 @@ def main(arguments):
 				tmpArgs = []
 			else:
 				tmpArgs.append(arg)
-		downloader = parseArgsList(tmpArgs, args, delete)
+		downloader = parseArgsList(tmpArgs, args)
 		if type(downloader) is Video:
 			videos.append(downloader)
 		elif type(downloader) is Playlist:
 			playlists.append(downloader)
-		print("Done")
 	else:
-		print("Reading and parsing file %s... " % IDS_FILE_NAME, end = "", flush = True)
+		print("Reading and parsing file \"%s\"..." % IDS_FILE_NAME)
 		idsFile = open(IDS_FILE_NAME, "r")
 		args = [line.strip() for line in idsFile]
 		if len(args) > 0 and args[0] in DELETE_ARGUMENTS:
 			delete = True
 			args = args[1:]
 		for arg in args:
-			downloader = parseArgsList(arg.split(' '), args, delete)
+			downloader = parseArgsList(arg.split(' '), args)
 			if type(downloader) is Video:
 				videos.append(downloader)
 			elif type(downloader) is Playlist:
 				playlists.append(downloader)
-		print("Done")
 
 	print("Videos:", *videos, "- Playlists:", *playlists)
 
@@ -380,21 +282,27 @@ def main(arguments):
 	if len(videos) == 0 and len(playlists) == 0:
 		print ("Nothing has been provided to download")
 	for video in videos:
-		video.loadData()
 		video.updateFile()
-		if video.download():
-			if video.saveMetadata():
-				print("Done")
-			else:
-				print("Failed to save metadata")
-		else:
-			print("Failed to download")
+		video.download()
+		video.saveMetadata()
 	for playlist in playlists:
-		playlist.loadData()
 		playlist.download()
 
 
 if __name__ == "__main__":
 	print("\n%s\nSTART %s\n%s\n" % ("-" * (6 + len(sys.argv[0])), sys.argv[0], "-" * (6 + len(sys.argv[0]))))
-	main(sys.argv)
+	try:
+		main(sys.argv)
+	except:
+		def removeIfExists(filename):
+			if os.path.isfile(filename):
+				os.remove(filename)
+
+		removeIfExists(YDL_FILENAME % {'ext': 'mp3'})
+		removeIfExists(YDL_FILENAME % {'ext': 'webm'})
+		removeIfExists(YDL_FILENAME % {'ext': 'webm.part'})
+		removeIfExists(YDL_FILENAME % {'ext': 'm4a'})
+		removeIfExists(YDL_FILENAME % {'ext': 'm4a.part'})
+
+		raise
 	print("\n%s\n END %s \n%s\n" % ("-" * (6 + len(sys.argv[0])), sys.argv[0], "-" * (6 + len(sys.argv[0]))))
