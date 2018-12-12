@@ -1,8 +1,8 @@
 # Playlist downloader
 Downloads an entire youtube playlist (or single videos) in **mp3 format**, **deducing** and saving **artist**, **name**, **remixer**, **tracknumber**... If the song has already been downloaded updates only its metadata.  
 
-Uses the API of an online downloader ([ConvertMp3](https://convertmp3.io)) so **only the audio data is downloaded**.
-##### I downloaded a ~150 songs playlist and it worked fine. I also developed an [mp3-player](https://github.com/Stypox/mp3-player), that can play playlists in order.
+**Only the audio data is downloaded**.
+##### I downloaded a ~150 songs playlist and it worked fine. I also developed an [mp3-player](https://gitlab.com/Stypox/mp3-player), that can play playlists in order.
 
 # [ID3 metadata](https://en.wikipedia.org/wiki/ID3) and title parsing
 Imagine a playlist (id ``1234567890abcdefghijklmnopqrstuvwx``) whose second video (id ``0a1b3c4d5e6``) is titled<br/>``ArtistName feat. Ft1 | SongName [Rel release](Remixer ft. Ft2 remix)``; the song's ID3 metadata would be:
@@ -52,15 +52,12 @@ After the process finishes the folders ``my_songs`` (containing ``Jim Yosef - Sm
 
 # Requirements
 * Requires **[Python 3.6+](https://www.python.org/downloads/release/python-370/)** (I didn't test older versions, but newer ones may work).
-* Requires the following **modules** installed: [google-api-python-client](https://pypi.org/project/google-api-python-client/); [mutagen](https://pypi.org/project/mutagen/).  
+* Requires the following **modules** installed: [youtube-dl](https://pypi.org/project/youtube_dl/); [mutagen](https://pypi.org/project/mutagen/).  
 [Install them using pip](https://packaging.python.org/tutorials/installing-packages/).
-* Requires a Google **API Key** registered for "**YouTube Data API v3**" to be saved in a file named ``playlist-downloader-devkey.txt`` placed in the directory the script is executed in.
-  To get a Google API Key for Youtube follow [this](https://developers.google.com/youtube/v3/getting-started) tutorial.
 
 # Notes and known issues
-* The songs should be downloaded at the **highest quality**, as [ConvertMP3 states](http://www.convertmp3.io/):
-  > MP3s will always be provided in the highest quality available (based on the maximum audio quality of the video, usually 256 kbps).
-* To check if the song has already been downloaded uses the **video id** (saved in ID3 metadata as ``albumartist``) and **not the file name**.
-* Video ids (**11** chars) and playlist ids (**34** chars) are automatically distinguished based on their **length**.
+* The songs are downloaded at the **highest possible quality**. youtube_dl.YoutubeDL is set up to download the best format that Youtube provides ("bestaudio/best")
+* To check if a song has already been downloaded uses its **video id** (saved in ID3 metadata as ``albumartist``) and **not its file name**.
+* Automatically **renames** a filename if the corresponding video changed name.
+* Video ids and playlist ids are automatically distinguished, but if an id refers both to a playlist and to a video **only the playlist** is downloaded.
 * When downloading more videos with the exact same name only the **first one** is going to be **downloaded**, and it's going to be saved using the **metadata of the last one**.
-* It can happen that **ConvertMP3 fails to convert** a video (probably for **copyright or location reasons**), even when trying manually, so in that case the script **saves in the song file the response** from ConvertMP3 (usually an HTML page).
