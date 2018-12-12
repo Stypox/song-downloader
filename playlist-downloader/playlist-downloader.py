@@ -30,13 +30,14 @@ YDL_OPTS = {
 		'preferredcodec': 'mp3',
 		'preferredquality': '192',
 	}],
-	'quiet': True
+	'noplaylist': False,
+	'quiet': True,
 }
 ydl = youtube_dl.YoutubeDL(YDL_OPTS)
 
-def ensureValidDirectory(directory):
+def ensureValidDirectory(directory, directoryIfInvalid = "./"):
 	if directory is None:
-		return "./"	
+		directory = directoryIfInvalid
 	if len(directory) > 0 and directory[-1] != "/":
 		directory += "/"
 
@@ -182,16 +183,15 @@ class Playlist:
 	delete = False
 
 	def __init__(self, info, directory):
-		self.directory = ensureValidDirectory(directory)
+		self.id = info['id']
+		self.title = info['title']
+		self.directory = ensureValidDirectory(directory, "./%s/" % self.id)
 
 		self.videos = []
 		playlistIndex = 0
 		for entry in info['entries']:
 			self.videos.append(Video(entry, self.directory, playlistIndex))
 			playlistIndex += 1
-
-		self.id = info['id']
-		self.title = info['title']		
 	def __getitem__(self, key):
 		return self.videos[key]
 	def __repr__(self):
@@ -303,6 +303,8 @@ if __name__ == "__main__":
 		removeIfExists(YDL_FILENAME % {'ext': 'webm.part'})
 		removeIfExists(YDL_FILENAME % {'ext': 'm4a'})
 		removeIfExists(YDL_FILENAME % {'ext': 'm4a.part'})
+		removeIfExists(YDL_FILENAME % {'ext': 'ytdl'})
+		removeIfExists(YDL_FILENAME % {'ext': 'ytdl.part'})
 
 		raise
 	print("\n%s\n END %s \n%s\n" % ("-" * (6 + len(sys.argv[0])), sys.argv[0], "-" * (6 + len(sys.argv[0]))))
