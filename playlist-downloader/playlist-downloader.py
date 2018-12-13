@@ -7,6 +7,7 @@
 #misc
 import os
 import sys
+import argparse
 
 #getting info and downloading
 import youtube_dl
@@ -17,9 +18,6 @@ from mutagen.easyid3 import EasyID3
 #regex to parse video titles
 import re
 from re import escape as reEsc
-
-IDS_FILE_NAME = "playlist-downloader-ids.txt"
-DELETE_ARGUMENTS = ["-d", "--delete"]
 
 YDL_FILENAME = "playlist_downloader_temp_file.%(ext)s"
 YDL_OPTS = {
@@ -180,8 +178,6 @@ class Video:
 		songFile["albumartist"] = self.id #TODO not good
 		songFile.save()
 class Playlist:
-	delete = False
-
 	def __init__(self, info, directory):
 		self.id = info['id']
 		self.title = info['title']
@@ -215,77 +211,81 @@ class Playlist:
 			video.download()
 			video.saveMetadata()
 
-		if Playlist.delete:
+		if Options.delete:
 			playlistIds = [video.id for video in self.videos]
 			for fileId, filename in directoryFilenames.items():
 				if fileId not in playlistIds:
 					print("Removing song \"%s\" since its id \"%s\" doesn't refer to a video of the playlist \"%s\"." % (self.directory + filename, fileId, self.id))
 					os.remove(self.directory + filename)
 
-def getDownloader(id, directory):
-	with ydl:
-		info = ydl.extract_info(id, download=False, process=False)
-		if 'entries' in info:
-			return Playlist(info, directory)
-		else:
-			return Video(info, directory)
-
-def parseArgsList(args, allArgs):
-	if len(args) == 0:
-		return
-	elif len(args) > 2:
-		raise RuntimeError("Invalid arguments (list of arguments \"%s\" too long): \"%s\"" % (args, allArgs))
-	return getDownloader(args[0], args[1] if len(args) == 2 else None)
-def main(arguments):
-	#arguments parsing
+class Options:
+	delete = False
+	quiet = False
+	verbose = False
 	videos = []
 	playlists = []
-	args = arguments[1:]
-	if len(args) > 0 and args[0] in DELETE_ARGUMENTS:
-		Playlist.delete = True
-		args = args[1:]
-	if len(args) > 0:
-		print("Parsing command line arguments...")
-		tmpArgs = []
-		for arg in args:
-			if arg == "-":
-				downloader = parseArgsList(tmpArgs, args)
-				if type(downloader) is Video:
-					videos.append(downloader)
-				elif type(downloader) is Playlist:
-					playlists.append(downloader)
-				tmpArgs = []
-			else:
-				tmpArgs.append(arg)
-		downloader = parseArgsList(tmpArgs, args)
-		if type(downloader) is Video:
-			videos.append(downloader)
-		elif type(downloader) is Playlist:
-			playlists.append(downloader)
-	else:
-		print("Reading and parsing file \"%s\"..." % IDS_FILE_NAME)
-		idsFile = open(IDS_FILE_NAME, "r")
-		args = [line.strip() for line in idsFile]
-		if len(args) > 0 and args[0] in DELETE_ARGUMENTS:
-			delete = True
-			args = args[1:]
-		for arg in args:
-			downloader = parseArgsList(arg.split(' '), args)
-			if type(downloader) is Video:
-				videos.append(downloader)
-			elif type(downloader) is Playlist:
-				playlists.append(downloader)
 
-	print("Videos:", *videos, "- Playlists:", *playlists)
+	argParser = argparse.ArgumentParser(prog="playlist-downloader.py")
+	argParser.add_argument('--delete', action='store_true', default=False, help="Delete downloaded songs that do not belong anymore to the provided playlists")
+	argParser.add_argument('--quiet', '-q', action='store_true', default=False, help="Do not print anything")
+	argParser.add_argument('--verbose', '-v', action='store_true', default=False, help="Print more debug information")
+	argParser.add_argument('download', nargs='+', metavar='ID', help="Videos/Playlists to be downloaded (ID) and DIRECTORY to use (optional), formatted this way: ID [DIRECTORY] - ... - ID [DIRECTORY]")
+
+	@staticmethod
+	def parse(arguments, idsFileIfArgumentsEmpty = "playlist-downloader-ids.txt"):
+		if len(arguments) == 1:
+			try:
+				arguments = open(idsFileIfArgumentsEmpty).read().split()
+			except FileNotFoundError:
+				print("Warning: no argument was provided via console and the file \"%s\" can't be opened." % idsFileIfArgumentsEmpty)
+		else:
+			arguments = arguments[1:]
+
+		args = vars(Options.argParser.parse_args(arguments))
+		Options.delete = args['delete']
+		Options.quiet = args['quiet']
+		Options.verbose = args['verbose']
+
+		currentDownloadArgs = []
+		for arg in args['download']:
+			if arg == '-':
+				Options.parseDownload(currentDownloadArgs)
+				currentDownloadArgs = []
+			else:
+				currentDownloadArgs.append(arg)
+		if len(currentDownloadArgs) != 0:
+			Options.parseDownload(currentDownloadArgs)
+		
+	@staticmethod
+	def parseDownload(downloadArgs):
+		if len(downloadArgs) == 1:
+			id = downloadArgs[0]
+			directory = None
+		elif len(downloadArgs) == 2:
+			id = downloadArgs[0]
+			directory = downloadArgs[1]
+		else:
+			raise argparse.ArgumentError("download", "Excepted 1 or 2 arguments but got %d: \"%s\"" % (len(downloadArgs), downloadArgs))
+
+		with ydl:
+			info = ydl.extract_info(id, download=False, process=False)
+			if 'entries' in info:
+				Options.playlists.append(Playlist(info, directory))
+			else:
+				Options.videos.append(Video(info, directory))
+
+def main(arguments):
+	Options.parse(arguments)
+	print("Videos:", *Options.videos, "- Playlists:", *Options.playlists)
 
 	#downloading
-	if len(videos) == 0 and len(playlists) == 0:
+	if len(Options.videos) == 0 and len(Options.playlists) == 0:
 		print ("Nothing has been provided to download")
-	for video in videos:
+	for video in Options.videos:
 		video.updateFile()
 		video.download()
 		video.saveMetadata()
-	for playlist in playlists:
+	for playlist in Options.playlists:
 		playlist.download()
 
 
