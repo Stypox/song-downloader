@@ -21,6 +21,7 @@ import re
 from re import escape as reEsc
 
 YDL_FILENAME = "playlist_downloader_temp_file.%(ext)s"
+YDL_FILENAME_MP3 = YDL_FILENAME % {'ext': 'mp3'}
 YDL_OPTS = {
 	'outtmpl': YDL_FILENAME,
 	'format': 'bestaudio/best',
@@ -48,14 +49,15 @@ def ensureValidDirectory(directory, directoryIfInvalid = "./"):
 class Song:
 	invalidFilename = "playlist-downloader-invalid-song-filename.mp3"
 
-	def __init__(self, videoTitle):
+	def __init__(self, validDirectory, videoTitle):
 		self.title = ""
 		self.artist = ""
 		self.remixer = ""
 		self.filename = ""
+		self.path = ""
 
 		self.parseTitle(videoTitle)
-		self.composeFilename(videoTitle)
+		self.composeFilename(validDirectory, videoTitle)
 
 	def parseTitle(self, videoTitle):
 		#finds the artist
@@ -95,7 +97,7 @@ class Song:
 		featMatch = re.search("[;,]?[ ][Ff]([Ee][Aa])?[Tt]", self.remixer)
 		if featMatch is not None:
 			self.remixer = self.remixer[:featMatch.start()]
-	def composeFilename(self, videoTitle):
+	def composeFilename(self, validDirectory, videoTitle):
 		Song.composeFilename.invalidChars = "<>:\"/\\|?*"
 		Song.composeFilename.validCharsMin = 31 #chr(31)
 		Song.composeFilename.dosNames = ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"]
@@ -108,8 +110,9 @@ class Song:
 			self.filename = Song.invalidFilename
 		else:
 			self.filename = self.filename + ".mp3"
-	def isValid(self, directory):
-		try: EasyID3(directory + self.filename)
+		self.path = validDirectory + self.filename 
+	def isValid(self):
+		try: EasyID3(self.path)
 		except: return False
 		return True
 class Video:
@@ -117,15 +120,12 @@ class Video:
 		self.info = info
 		self.id = info['id']
 		self.title = info['title']
-		self.song = Song(self.title)
 		self.directory = ensureValidDirectory(directory)
+		self.song = Song(self.directory, self.title)
 		self.inPlaylist = (playlistIndex is not None)
 		self.playlistIndex = playlistIndex
 	def __repr__(self):
-		if self.song is None:
-			return self.title + " (" + self.id + ")"
-		else:
-			return self.song.filename
+		return self.title + " (" + self.id + ")"
 
 	def updateFile(self, directoryFilenames = None):
 		if directoryFilenames is None:
@@ -137,32 +137,37 @@ class Video:
 				try:
 					if songFile["albumartist"][0] == self.id:
 						if filename != self.song.filename:
-							log(LogLevel.info, "Song %s changed name: renaming to %s" % (self.directory + filename, self.directory + self.song.filename))
-							os.rename(self.directory + filename, self.directory + self.song.filename)
+							log(LogLevel.info, "Song %s changed name: renaming to %s" % (self.directory + filename, self.song.path))
+							os.rename(self.directory + filename, self.song.path)
 						return
 				except KeyError: continue
 		else:
 			try:
 				if directoryFilenames[self.id] != self.song.filename:
-					log(LogLevel.info, "Song %s changed name: renaming to %s" % (self.directory + directoryFilenames[self.id], self.directory + self.song.filename))
-					os.rename(self.directory + directoryFilenames[self.id], self.directory + self.song.filename)
+					log(LogLevel.info, "Song %s changed name: renaming to %s" % (self.directory + directoryFilenames[self.id], self.song.path))
+					os.rename(self.directory + directoryFilenames[self.id], self.song.path)
 			except KeyError: pass
 	def download(self):
-		if self.song.isValid(self.directory):
-			log(LogLevel.info, "\"%s\" already downloaded." % self.song.filename)
+		if self.song.isValid():
+			log(LogLevel.info, "\"%s\" already downloaded." % self)
 			return
 
 		log(LogLevel.info, "Downloading \"%s\"..." % self, flush=True)
+		log(LogLevel.info, "Destination: \"%s\"" % self.song.path, flush=True)
+		log(LogLevel.debug, "Song will be converted to mp3 and saved to \"%s\"" % (self.directory + YDL_FILENAME_MP3), flush=True)
 		if self.inPlaylist:
+			log(LogLevel.debug, "This video is in a playlist. Extracting info and downloading using id \"%s\"" % self.id)
 			ydl.extract_info(self.id, download=True)
 		else:
 			#info already downloaded, only processing is needed
+			log(LogLevel.debug, "This video is not in a playlist. The info has already been extracted, proceeding to download (id: \"%s\")" % self.id)
 			ydl.process_ie_result(self.info, download=True)
-		os.rename(YDL_FILENAME % {'ext': 'mp3'}, self.directory + self.song.filename)
+		log(LogLevel.debug, "Renaming \"%s\" to \"%s\"" % (YDL_FILENAME_MP3, self.song.path))
+		os.rename(YDL_FILENAME_MP3, self.song.path)
 	def saveMetadata(self, playlistId = None):
 		log(LogLevel.debug, "Saving metadata...", flush=True)
 		try:
-			songFile = EasyID3(self.directory + self.song.filename)
+			songFile = EasyID3(self.song.path)
 		except:
 			log(LogLevel.error, "Failed to save metadata")
 			return
@@ -189,15 +194,15 @@ class Playlist:
 		for entry in info['entries']:
 			self.videos.append(Video(entry, self.directory, playlistIndex))
 			playlistIndex += 1
-	def __getitem__(self, key):
-		return self.videos[key]
 	def __repr__(self):
-		if len(self.videos) == 0:
-			return self.title + " (" + self.id + ")"
-		else:
-			return [video.__repr__() for video in self.videos].__repr__()
+		return self.title + " (" + self.id + ")"
+	def printVideos(self):
+		print(self, ":", sep="")
+		for video in self.videos:
+			print("*", video)
 
 	def download(self):
+		log(LogLevel.info, "Downloading playlist \"%s\" (id: \"%s\") to \"%s\"" % (self.title, self.id, self.directory))
 		#TODO do not try to rename / delete mp3's that do not belong to this playlist
 		directoryFilenames = {}
 		files = os.listdir(self.directory)
@@ -296,7 +301,10 @@ def main(arguments):
 	#arguments
 	Options.parse(arguments)
 	log(LogLevel.info, "Videos:", Options.videos)
-	log(LogLevel.info, "Playlists:", *Options.playlists, sep='\n')
+	log(LogLevel.info, "Playlists:", Options.playlists)
+	if Options.verbose:
+		for playlist in Options.playlists:
+			playlist.printVideos()
 
 	#downloading
 	if len(Options.videos) == 0 and len(Options.playlists) == 0:
