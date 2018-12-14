@@ -47,9 +47,9 @@ def ensureValidDirectory(directory, directoryIfInvalid = "./"):
 	return directory
 
 class Song:
-	invalidFilename = "playlist-downloader-invalid-song-filename.mp3"
+	invalidFilename = "playlist_downloader_invalid_song_filename_%s.mp3"
 
-	def __init__(self, validDirectory, videoTitle):
+	def __init__(self, videoId, videoTitle, validDirectory):
 		self.title = ""
 		self.artist = ""
 		self.remixer = ""
@@ -57,7 +57,7 @@ class Song:
 		self.path = ""
 
 		self.parseTitle(videoTitle)
-		self.composeFilename(validDirectory, videoTitle)
+		self.composeFilename(videoId, videoTitle, validDirectory)
 
 	def parseTitle(self, videoTitle):
 		#finds the artist
@@ -97,7 +97,7 @@ class Song:
 		featMatch = re.search("[;,]?[ ][Ff]([Ee][Aa])?[Tt]", self.remixer)
 		if featMatch is not None:
 			self.remixer = self.remixer[:featMatch.start()]
-	def composeFilename(self, validDirectory, videoTitle):
+	def composeFilename(self, videoId, videoTitle, validDirectory):
 		Song.composeFilename.invalidChars = "<>:\"/\\|?*"
 		Song.composeFilename.validCharsMin = 31 #chr(31)
 		Song.composeFilename.dosNames = ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"]
@@ -107,9 +107,9 @@ class Song:
 				if ord(letter) > Song.composeFilename.validCharsMin:
 					self.filename += letter
 		if self.filename == "" or self.filename in Song.composeFilename.dosNames:
-			self.filename = Song.invalidFilename
+			self.filename = Song.invalidFilename % videoId
 		else:
-			self.filename = self.filename + ".mp3"
+			self.filename = self.filename + "_" + videoId + ".mp3"
 		self.path = validDirectory + self.filename 
 	def isValid(self):
 		try: EasyID3(self.path)
@@ -121,7 +121,7 @@ class Video:
 		self.id = info['id']
 		self.title = info['title']
 		self.directory = ensureValidDirectory(directory)
-		self.song = Song(self.directory, self.title)
+		self.song = Song(self.id, self.title, self.directory)
 		self.inPlaylist = (playlistIndex is not None)
 		self.playlistIndex = playlistIndex
 	def __repr__(self):
@@ -207,10 +207,9 @@ class Playlist:
 		directoryFilenames = {}
 		files = os.listdir(self.directory)
 		for filename in files:
-			try:
-				songFile = EasyID3(self.directory + filename)
-				directoryFilenames[songFile["albumartist"][0]] = filename
-			except: continue
+			# len("VIDEOTITLE_aaVIDEOIDaa.mp3") > 16
+			if len(filename) > 16 and filename[-16] == "_" and filename[-4:] == ".mp3":
+				directoryFilenames[filename[-15:-4]] = filename
 
 		for video in self.videos:
 			video.updateFile(directoryFilenames)
