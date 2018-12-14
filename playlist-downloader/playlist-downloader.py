@@ -254,12 +254,13 @@ class Options:
 				currentDownloadArgs = []
 			else:
 				currentDownloadArgs.append(arg)
-		if len(currentDownloadArgs) != 0:
-			Options.parseDownload(currentDownloadArgs)
+		Options.parseDownload(currentDownloadArgs)
 		
 	@staticmethod
 	def parseDownload(downloadArgs):
-		if len(downloadArgs) == 1:
+		if len(downloadArgs) == 0:
+			return
+		elif len(downloadArgs) == 1:
 			id = downloadArgs[0]
 			directory = None
 		elif len(downloadArgs) == 2:
