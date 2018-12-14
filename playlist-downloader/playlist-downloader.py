@@ -196,10 +196,11 @@ class Playlist:
 			playlistIndex += 1
 	def __repr__(self):
 		return self.title + " (" + self.id + ")"
-	def printVideos(self):
-		print(self, ":", sep="")
-		for video in self.videos:
-			print("*", video)
+	def logVideos(self):
+		log(LogLevel.debug, "Playlist \"%s\" at \"%s\":" % (self, self.directory))
+		if not Options.quiet and Options.verbose:
+			for video in self.videos:
+				print("*", video)
 
 	def download(self):
 		log(LogLevel.info, "Downloading playlist \"%s\" (id: \"%s\") to \"%s\"" % (self.title, self.id, self.directory))
@@ -258,10 +259,17 @@ class Options:
 				currentDownloadArgs = []
 			else:
 				currentDownloadArgs.append(arg)
+		log(LogLevel.debug, "Options: Delete=%s; Quiet=%s; Verbose=%s;" % (Options.delete, Options.quiet, Options.verbose))
+
 		Options.parseDownload(currentDownloadArgs)
+		log(LogLevel.info, "Videos:", Options.videos)
+		log(LogLevel.info, "Playlists:", Options.playlists)
+		for playlist in Options.playlists:
+			playlist.logVideos()
 		
 	@staticmethod
 	def parseDownload(downloadArgs):
+		log(LogLevel.debug, "Parsing download arguments %s" % downloadArgs)
 		if len(downloadArgs) == 0:
 			return
 		elif len(downloadArgs) == 1:
@@ -277,8 +285,10 @@ class Options:
 			info = ydl.extract_info(id, download=False, process=False)
 			if 'entries' in info:
 				Options.playlists.append(Playlist(info, directory))
+				log(LogLevel.debug, "Gotten playlist \"%s\" at \"%s\"" % (Options.playlists[-1], Options.playlists[-1].directory))
 			else:
 				Options.videos.append(Video(info, directory))
+				log(LogLevel.debug, "Gotten video \"%s\" at \"%s\"" % (Options.videos[-1], Options.videos[-1].directory))
 
 class LogLevel(enum.Enum):
 	debug = 0,
@@ -299,11 +309,6 @@ def log(level, *args, **kwargs):
 def main(arguments):
 	#arguments
 	Options.parse(arguments)
-	log(LogLevel.info, "Videos:", Options.videos)
-	log(LogLevel.info, "Playlists:", Options.playlists)
-	if Options.verbose:
-		for playlist in Options.playlists:
-			playlist.printVideos()
 
 	#downloading
 	if len(Options.videos) == 0 and len(Options.playlists) == 0:
