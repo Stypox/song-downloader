@@ -8,6 +8,7 @@
 import os
 import sys
 import argparse
+import enum
 
 #getting info and downloading
 import youtube_dl
@@ -40,7 +41,7 @@ def ensureValidDirectory(directory, directoryIfInvalid = "./"):
 		directory += "/"
 
 	if not os.path.isdir(directory):
-		print("Creating directory \"%s\"" % directory)
+		log(LogLevel.warning, "Creating directory \"%s\"" % directory)
 		os.makedirs(directory)
 	return directory
 
@@ -136,22 +137,22 @@ class Video:
 				try:
 					if songFile["albumartist"][0] == self.id:
 						if filename != self.song.filename:
-							print("Song %s changed name: renaming to %s" % (self.directory + filename, self.directory + self.song.filename))
+							log(LogLevel.info, "Song %s changed name: renaming to %s" % (self.directory + filename, self.directory + self.song.filename))
 							os.rename(self.directory + filename, self.directory + self.song.filename)
 						return
 				except KeyError: continue
 		else:
 			try:
 				if directoryFilenames[self.id] != self.song.filename:
-					print("Song %s changed name: renaming to %s" % (self.directory + directoryFilenames[self.id], self.directory + self.song.filename))
+					log(LogLevel.info, "Song %s changed name: renaming to %s" % (self.directory + directoryFilenames[self.id], self.directory + self.song.filename))
 					os.rename(self.directory + directoryFilenames[self.id], self.directory + self.song.filename)
 			except KeyError: pass
 	def download(self):
 		if self.song.isValid(self.directory):
-			print("\"%s\" already downloaded." % self.song.filename)
+			log(LogLevel.info, "\"%s\" already downloaded." % self.song.filename)
 			return
 
-		print("Downloading \"%s\"..." % self, flush=True)
+		log(LogLevel.info, "Downloading \"%s\"..." % self, flush=True)
 		if self.inPlaylist:
 			ydl.extract_info(self.id, download=True)
 		else:
@@ -159,11 +160,11 @@ class Video:
 			ydl.process_ie_result(self.info, download=True)
 		os.rename(YDL_FILENAME % {'ext': 'mp3'}, self.directory + self.song.filename)
 	def saveMetadata(self, playlistId = None):
-		print("Saving metadata...", flush=True)
+		log(LogLevel.debug, "Saving metadata...", flush=True)
 		try:
 			songFile = EasyID3(self.directory + self.song.filename)
 		except:
-			print("Failed to save metadata")
+			log(LogLevel.error, "Failed to save metadata")
 			return
 		if self.playlistIndex is not None:
 			songFile["tracknumber"] = str(self.playlistIndex)
@@ -215,7 +216,7 @@ class Playlist:
 			playlistIds = [video.id for video in self.videos]
 			for fileId, filename in directoryFilenames.items():
 				if fileId not in playlistIds:
-					print("Removing song \"%s\" since its id \"%s\" doesn't refer to a video of the playlist \"%s\"." % (self.directory + filename, fileId, self.id))
+					log(LogLevel.info, "Removing song \"%s\" since its id \"%s\" doesn't refer to a video of the playlist \"%s\"." % (self.directory + filename, fileId, self.id))
 					os.remove(self.directory + filename)
 
 class Options:
@@ -226,10 +227,10 @@ class Options:
 	playlists = []
 
 	argParser = argparse.ArgumentParser(prog="playlist-downloader.py")
-	argParser.add_argument('--delete', action='store_true', default=False, help="Delete downloaded songs that do not belong anymore to the provided playlists")
-	argParser.add_argument('--quiet', '-q', action='store_true', default=False, help="Do not print anything")
-	argParser.add_argument('--verbose', '-v', action='store_true', default=False, help="Print more debug information")
-	argParser.add_argument('download', nargs='+', metavar='ID', help="Videos/Playlists to be downloaded (ID) and DIRECTORY to use (optional), formatted this way: ID [DIRECTORY] - ... - ID [DIRECTORY]")
+	argParser.add_argument('-d', '--delete', action='store_true', default=False, help="Delete downloaded songs that do not belong anymore to the provided playlists")
+	argParser.add_argument('-q', '--quiet', action='store_true', default=False, help="Do not print anything")
+	argParser.add_argument('-v', '--verbose', action='store_true', default=False, help="Print more debug information")
+	argParser.add_argument('download', nargs='+', metavar='IDS', help="Videos/Playlists to be downloaded (ID) and DIRECTORY to use (optional), formatted this way: ID [DIRECTORY] - ... - ID [DIRECTORY]")
 
 	@staticmethod
 	def parse(arguments, idsFileIfArgumentsEmpty = "playlist-downloader-ids.txt"):
@@ -237,7 +238,7 @@ class Options:
 			try:
 				arguments = open(idsFileIfArgumentsEmpty).read().split()
 			except FileNotFoundError:
-				print("Warning: no argument was provided via console and the file \"%s\" can't be opened." % idsFileIfArgumentsEmpty)
+				log(LogLevel.warning, "no argument was provided via console and the file \"%s\" can't be opened." % idsFileIfArgumentsEmpty)
 		else:
 			arguments = arguments[1:]
 
@@ -274,13 +275,31 @@ class Options:
 			else:
 				Options.videos.append(Video(info, directory))
 
+class LogLevel(enum.Enum):
+	debug = 0,
+	info = 1,
+	warning = 2,
+	error = 3
+def log(level, *args, **kwargs):
+	if not Options.quiet:
+		if level == LogLevel.debug and Options.verbose:
+			print("[debug]", *args, **kwargs)
+		elif level == LogLevel.info:
+			print("[info]", *args, **kwargs)
+		elif level == LogLevel.warning:
+			print("[warning]", *args, **kwargs)
+		elif level == LogLevel.error:
+			print("[error]", *args, **kwargs)
+
 def main(arguments):
+	#arguments
 	Options.parse(arguments)
-	print("Videos:", *Options.videos, "- Playlists:", *Options.playlists)
+	log(LogLevel.info, "Videos:", Options.videos)
+	log(LogLevel.info, "Playlists:", *Options.playlists, sep='\n')
 
 	#downloading
 	if len(Options.videos) == 0 and len(Options.playlists) == 0:
-		print ("Nothing has been provided to download")
+		log(LogLevel.warning, "Nothing has been provided to download")
 	for video in Options.videos:
 		video.updateFile()
 		video.download()
@@ -290,7 +309,6 @@ def main(arguments):
 
 
 if __name__ == "__main__":
-	print("\n%s\nSTART %s\n%s\n" % ("-" * (6 + len(sys.argv[0])), sys.argv[0], "-" * (6 + len(sys.argv[0]))))
 	try:
 		main(sys.argv)
 	except:
@@ -307,4 +325,3 @@ if __name__ == "__main__":
 		removeIfExists(YDL_FILENAME % {'ext': 'ytdl.part'})
 
 		raise
-	print("\n%s\n END %s \n%s\n" % ("-" * (6 + len(sys.argv[0])), sys.argv[0], "-" * (6 + len(sys.argv[0]))))
