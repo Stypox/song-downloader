@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-#TODO print more information (e.g. in Playlist.download()), add verbose mode and print an indicator for the type of information (info, warning, error)
 #TODO use multithreading to download and convert. i.e. after a download is finished: start another one AND, at the same time, convert the file.
-#TODO [look in Playlist.download()]
-#TODO [look in Video.saveMetadata()]
 
 #misc
 import os
