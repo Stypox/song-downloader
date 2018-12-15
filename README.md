@@ -1,4 +1,4 @@
-# Playlist downloader
+# Song downloader
 Downloads an entire youtube playlist (or single videos) in **mp3 format**, **deducing** and saving **artist**, **name**, **remixer**, **tracknumber**... If the song has already been downloaded updates only its metadata.  
 
 **Only the audio data is downloaded**.
@@ -20,7 +20,7 @@ Choose some videos and playlists to **download** (for example [this video](https
 Then there are **two ways** to provide the script with those ids: using a **file** or using **command line arguments** (all parameters between **\[square brackets\]** are to be considered optional; **\|** means **or**):
 
 ## Saving ids in file
-In the directory the script is executed in create a file named ``playlist-downloader-ids.txt``. In that file you can insert the **videos/playlists to be downloaded** this way:
+In the directory the script is executed in create a file named ``song-downloader-ids.txt``. In that file you can insert the **videos/playlists to be downloaded** this way:
 
     OPTIONS
     ID [DIRECTORY]
@@ -41,8 +41,8 @@ In the directory the script is executed in create a file named ``playlist-downlo
 
 Here "ID" represents the playlist or video id/url; "DIRECTORY" is **optional**, represents the directory in which to save the song(s), and defaults to ``./`` for videos and ``./ID/`` for playlists. If a path contains spaces, you have to sorround it with ``"``. For example (command line commands):
 
-    > cd C:/playlist-downloader/
-    > python3 playlist-downloader.py --delete z-teFykRk0Y ./my_songs/ - PLR0fgOhCSN8ilC2GWuPkipy8FRNp-m-7C
+    > cd C:/song-downloader/
+    > python3 song-downloader.py --delete z-teFykRk0Y ./my_songs/ - PLR0fgOhCSN8ilC2GWuPkipy8FRNp-m-7C
 
 (*) Note that the command used for Python is **not always** ``python3``: it could be ``py``, ``python``, ``python3.6`` or others too.
 

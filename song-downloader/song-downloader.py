@@ -233,14 +233,14 @@ class Options:
 	videos = []
 	playlists = []
 
-	argParser = argparse.ArgumentParser(prog="playlist-downloader.py")
+	argParser = argparse.ArgumentParser(prog="song-downloader.py")
 	argParser.add_argument('-d', '--delete', action='store_true', default=False, help="Delete downloaded songs that do not belong anymore to the provided playlists")
 	argParser.add_argument('-q', '--quiet', action='store_true', default=False, help="Do not print anything")
 	argParser.add_argument('-v', '--verbose', action='store_true', default=False, help="Print more debug information")
 	argParser.add_argument('download', nargs='+', metavar='IDS', help="Videos/Playlists to be downloaded (ID) and DIRECTORY to use (optional), formatted this way: ID [DIRECTORY] - ... - ID [DIRECTORY]")
 
 	@staticmethod
-	def parse(arguments, idsFileIfArgumentsEmpty = "playlist-downloader-ids.txt"):
+	def parse(arguments, idsFileIfArgumentsEmpty = "song-downloader-ids.txt"):
 		if len(arguments) == 1:
 			try:
 				arguments = open(idsFileIfArgumentsEmpty).read().split()
