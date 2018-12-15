@@ -181,7 +181,6 @@ class Video:
 			songFile["artist"] = "%s (original by %s)" % (self.song.remixer, self.song.artist)
 		if playlistId is not None:
 			songFile["album"] = playlistId
-		songFile["albumartist"] = self.id #TODO not good
 		songFile.save()
 class Playlist:
 	def __init__(self, info, directory):
@@ -204,13 +203,19 @@ class Playlist:
 
 	def download(self):
 		log(LogLevel.info, "Downloading playlist \"%s\" (id: \"%s\") to \"%s\"" % (self.title, self.id, self.directory))
-		#TODO do not try to rename / delete mp3's that do not belong to this playlist
+
 		directoryFilenames = {}
 		files = os.listdir(self.directory)
 		for filename in files:
 			# len("VIDEOTITLE_aaVIDEOIDaa.mp3") > 16
 			if len(filename) > 16 and filename[-16] == "_" and filename[-4:] == ".mp3":
-				directoryFilenames[filename[-15:-4]] = filename
+				try:
+					if EasyID3(filename)["album"] == self.id:
+						directoryFilenames[filename[-15:-4]] = filename
+				except KeyboardInterrupt:
+					raise
+				except:
+					pass
 
 		for video in self.videos:
 			video.updateFile(directoryFilenames)
