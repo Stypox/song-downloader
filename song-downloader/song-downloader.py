@@ -230,6 +230,7 @@ class Options:
 	delete = False
 	quiet = False
 	verbose = False
+	limitToConsoleWidth = False
 	videos = []
 	playlists = []
 
@@ -237,6 +238,7 @@ class Options:
 	argParser.add_argument('-d', '--delete', action='store_true', default=False, help="Delete downloaded songs that do not belong anymore to the provided playlists")
 	argParser.add_argument('-q', '--quiet', action='store_true', default=False, help="Do not print anything")
 	argParser.add_argument('-v', '--verbose', action='store_true', default=False, help="Print more debug information")
+	argParser.add_argument('-w', '--limit-to-console-width', action='store_true', default=False, help="Print to the console only part of the output so that it can fit in the console width")
 	argParser.add_argument('download', nargs='+', metavar='IDS', help="Videos/Playlists to be downloaded (ID) and DIRECTORY to use (optional), formatted this way: ID [DIRECTORY] - ... - ID [DIRECTORY]")
 
 	@staticmethod
@@ -253,6 +255,10 @@ class Options:
 		Options.delete = args['delete']
 		Options.quiet = args['quiet']
 		Options.verbose = args['verbose']
+		Options.limitToConsoleWidth = args['limit_to_console_width']
+
+		if Options.limitToConsoleWidth:
+			Options.consoleWidth = int(os.popen('stty size', 'r').read().split()[1])
 
 		currentDownloadArgs = []
 		for arg in args['download']:
@@ -261,7 +267,7 @@ class Options:
 				currentDownloadArgs = []
 			else:
 				currentDownloadArgs.append(arg)
-		log(LogLevel.debug, "Options: Delete=%s; Quiet=%s; Verbose=%s;" % (Options.delete, Options.quiet, Options.verbose))
+		log(LogLevel.debug, "Options: Delete=%s; Quiet=%s; Verbose=%s; LimitToConsoleWidth=%s;" % (Options.delete, Options.quiet, Options.verbose, Options.limitToConsoleWidth))
 
 		Options.parseDownload(currentDownloadArgs)
 		log(LogLevel.info, "Videos:", Options.videos)
@@ -299,14 +305,56 @@ class LogLevel(enum.Enum):
 	error = 3
 def log(level, *args, **kwargs):
 	if not Options.quiet:
-		if level == LogLevel.debug and Options.verbose:
-			print("[debug]", *args, **kwargs)
-		elif level == LogLevel.info:
-			print("[info]", *args, **kwargs)
-		elif level == LogLevel.warning:
-			print("[warning]", *args, **kwargs)
-		elif level == LogLevel.error:
+		if level == LogLevel.error:
 			print("[error]", *args, **kwargs)
+		else:
+			if Options.limitToConsoleWidth:
+				
+
+				separator = kwargs.get('sep', " ")
+				end = kwargs.get('end', "\n")
+				newKwargs = {}
+				for key, value in kwargs.items():
+					if key != 'sep' and key != 'end':
+						newKwargs[key] = value
+
+				toPrint = ""
+				if level == LogLevel.debug and Options.verbose:
+					toPrint = "[debug] "
+				elif level == LogLevel.info:
+					toPrint = "[info] "
+				elif level == LogLevel.warning:
+					toPrint = "[warning] "
+				else:
+					return
+					
+				firstTime = True
+				for arg in args:
+					if firstTime:
+						toPrint += arg.__str__()
+					else:
+						toPrint += separator + arg.__str__()
+					firstTime = False
+				toPrint += end
+
+				lines = toPrint.split("\n")
+				toPrint = ""
+				for line in lines:
+					if len(line) > Options.consoleWidth:
+						toPrint += line[:Options.consoleWidth]
+					else:
+						toPrint += line + "\n"
+				if toPrint[-1] == "\n":
+					toPrint = toPrint[:-1]
+
+				print(toPrint, sep="", end="", **newKwargs)
+			else:
+				if level == LogLevel.debug and Options.verbose:
+					print("[debug]", *args, **kwargs)
+				elif level == LogLevel.info:
+					print("[info]", *args, **kwargs)
+				elif level == LogLevel.warning:
+					print("[warning]", *args, **kwargs)
 
 def main(arguments):
 	#arguments
