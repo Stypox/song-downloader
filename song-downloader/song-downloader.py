@@ -207,7 +207,7 @@ class Playlist:
 			# len("VIDEOTITLE_aaVIDEOIDaa.mp3") > 16
 			if len(filename) > 16 and filename[-16] == "_" and filename[-4:] == ".mp3":
 				try:
-					if EasyID3(filename)["album"] == self.id:
+					if EasyID3(self.directory + filename)["album"][0] == self.id:
 						directoryFilenames[filename[-15:-4]] = filename
 				except KeyboardInterrupt:
 					raise
@@ -217,7 +217,7 @@ class Playlist:
 		for video in self.videos:
 			video.updateFile(directoryFilenames)
 			video.download()
-			video.saveMetadata()
+			video.saveMetadata(self.id)
 
 		if Options.delete:
 			playlistIds = [video.id for video in self.videos]
