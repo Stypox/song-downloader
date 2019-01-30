@@ -145,22 +145,27 @@ class Video:
 					os.rename(self.directory + directoryFilenames[self.id], self.song.path)
 			except KeyError: pass
 	def download(self):
-		if self.song.isValid():
-			log(LogLevel.info, "\"%s\" already downloaded." % self)
-			return
+		try:
+			if self.song.isValid():
+				log(LogLevel.info, "\"%s\" already downloaded." % self)
+				return
 
-		log(LogLevel.info, "Downloading \"%s\"..." % self, flush=True)
-		log(LogLevel.info, "Destination: \"%s\"" % self.song.path, flush=True)
-		log(LogLevel.debug, "Song will be converted to mp3 and saved to \"%s\"" % (self.directory + YDL_FILENAME_MP3), flush=True)
-		if self.inPlaylist:
-			log(LogLevel.debug, "This video is in a playlist. Extracting info and downloading using id \"%s\"" % self.id)
-			ydl.extract_info(self.id, download=True)
-		else:
-			#info already downloaded, only processing is needed
-			log(LogLevel.debug, "This video is not in a playlist. The info has already been extracted, proceeding to download (id: \"%s\")" % self.id)
-			ydl.process_ie_result(self.info, download=True)
-		log(LogLevel.debug, "Renaming \"%s\" to \"%s\"" % (YDL_FILENAME_MP3, self.song.path))
-		os.rename(YDL_FILENAME_MP3, self.song.path)
+			log(LogLevel.info, "Downloading \"%s\"..." % self, flush=True)
+			log(LogLevel.info, "Destination: \"%s\"" % self.song.path, flush=True)
+			log(LogLevel.debug, "Song will be converted to mp3 and saved to \"%s\"" % (self.directory + YDL_FILENAME_MP3), flush=True)
+			if self.inPlaylist:
+				log(LogLevel.debug, "This video is in a playlist. Extracting info and downloading using id \"%s\"" % self.id)
+				ydl.extract_info(self.id, download=True)
+			else:
+				#info already downloaded, only processing is needed
+				log(LogLevel.debug, "This video is not in a playlist. The info has already been extracted, proceeding to download (id: \"%s\")" % self.id)
+				ydl.process_ie_result(self.info, download=True)
+			log(LogLevel.debug, "Renaming \"%s\" to \"%s\"" % (YDL_FILENAME_MP3, self.song.path))
+			os.rename(YDL_FILENAME_MP3, self.song.path)
+		except KeyboardInterrupt:
+			raise
+		except:
+			log(LogLevel.error, "Failed to download")
 	def saveMetadata(self, playlistId = None):
 		log(LogLevel.debug, "Saving metadata...", flush=True)
 		try:
