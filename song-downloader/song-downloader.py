@@ -247,8 +247,8 @@ class Options:
 	argParser.add_argument('-w', '--limit-to-console-width', action='store_true', default=False, help="Print to the console only part of the output so that it can fit in the console width")
 	argParser.add_argument('download', nargs='+', metavar='IDS', help="Videos/Playlists to be downloaded (ID) and DIRECTORY to use (optional), formatted this way: ID [DIRECTORY] - ... - ID [DIRECTORY]")
 
-	@staticmethod
-	def parse(arguments, idsFileIfArgumentsEmpty = "song-downloader-ids.txt"):
+	@classmethod
+	def parse(cls, arguments, idsFileIfArgumentsEmpty = "song-downloader-ids.txt"):
 		if len(arguments) == 1:
 			try:
 				arguments = open(idsFileIfArgumentsEmpty).read().split()
@@ -257,29 +257,29 @@ class Options:
 		else:
 			arguments = arguments[1:]
 
-		opts = vars(Options.argParser.parse_args(arguments))
-		Options.delete = opts['delete']
-		Options.quiet = opts['quiet']
-		Options.verbose = opts['verbose']
-		Options.limitToConsoleWidth = opts['limit_to_console_width']
+		opts = vars(cls.argParser.parse_args(arguments))
+		cls.delete = opts['delete']
+		cls.quiet = opts['quiet']
+		cls.verbose = opts['verbose']
+		cls.limitToConsoleWidth = opts['limit_to_console_width']
 
 		currentDownloadArgs = []
 		for arg in opts['download']:
 			if arg == '-':
-				Options.parseDownload(currentDownloadArgs)
+				cls.parseDownload(currentDownloadArgs)
 				currentDownloadArgs = []
 			else:
 				currentDownloadArgs.append(arg)
-		log(LogLevel.debug, "Options: Delete=%s; Quiet=%s; Verbose=%s; LimitToConsoleWidth=%s;" % (Options.delete, Options.quiet, Options.verbose, Options.limitToConsoleWidth))
+		log(LogLevel.debug, "cls: Delete=%s; Quiet=%s; Verbose=%s; LimitToConsoleWidth=%s;" % (cls.delete, cls.quiet, cls.verbose, cls.limitToConsoleWidth))
 
-		Options.parseDownload(currentDownloadArgs)
-		log(LogLevel.info, "Videos:", Options.videos)
-		log(LogLevel.info, "Playlists:", Options.playlists)
-		for playlist in Options.playlists:
+		cls.parseDownload(currentDownloadArgs)
+		log(LogLevel.info, "Videos:", cls.videos)
+		log(LogLevel.info, "Playlists:", cls.playlists)
+		for playlist in cls.playlists:
 			playlist.logVideos()
 		
-	@staticmethod
-	def parseDownload(downloadArgs):
+	@classmethod
+	def parseDownload(cls, downloadArgs):
 		log(LogLevel.debug, "Parsing download arguments %s" % downloadArgs)
 		if len(downloadArgs) == 0:
 			return
@@ -295,11 +295,11 @@ class Options:
 		with ydl:
 			info = ydl.extract_info(id, download=False, process=False)
 			if 'entries' in info:
-				Options.playlists.append(Playlist(info, directory))
-				log(LogLevel.debug, "Gotten playlist \"%s\" at \"%s\"" % (Options.playlists[-1], Options.playlists[-1].directory))
+				cls.playlists.append(Playlist(info, directory))
+				log(LogLevel.debug, "Gotten playlist \"%s\" at \"%s\"" % (cls.playlists[-1], cls.playlists[-1].directory))
 			else:
-				Options.videos.append(Video(info, directory))
-				log(LogLevel.debug, "Gotten video \"%s\" at \"%s\"" % (Options.videos[-1], Options.videos[-1].directory))
+				cls.videos.append(Video(info, directory))
+				log(LogLevel.debug, "Gotten video \"%s\" at \"%s\"" % (cls.videos[-1], cls.videos[-1].directory))
 
 class LogLevel(enum.Enum):
 	debug = 0,
