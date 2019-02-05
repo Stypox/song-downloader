@@ -312,8 +312,6 @@ def log(level, *args, **kwargs):
 			print("[error]", *args, **kwargs)
 		else:
 			if Options.limitToConsoleWidth:
-				
-
 				separator = kwargs.get('sep', " ")
 				end = kwargs.get('end', "\n")
 				newKwargs = {}
@@ -325,7 +323,7 @@ def log(level, *args, **kwargs):
 				if level == LogLevel.debug and Options.verbose:
 					toPrint = "[debug] "
 				elif level == LogLevel.info:
-					toPrint = "[info] "
+					toPrint = ""
 				elif level == LogLevel.warning:
 					toPrint = "[warning] "
 				else:
@@ -355,7 +353,7 @@ def log(level, *args, **kwargs):
 				if level == LogLevel.debug and Options.verbose:
 					print("[debug]", *args, **kwargs)
 				elif level == LogLevel.info:
-					print("[info]", *args, **kwargs)
+					print(*args, **kwargs)
 				elif level == LogLevel.warning:
 					print("[warning]", *args, **kwargs)
 
