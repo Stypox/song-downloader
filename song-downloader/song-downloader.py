@@ -236,6 +236,7 @@ class Options:
 	quiet = False
 	verbose = False
 	limitToConsoleWidth = False
+	consoleWidth = int(os.popen('stty size', 'r').read().split()[1])
 	videos = []
 	playlists = []
 
@@ -256,17 +257,14 @@ class Options:
 		else:
 			arguments = arguments[1:]
 
-		args = vars(Options.argParser.parse_args(arguments))
-		Options.delete = args['delete']
-		Options.quiet = args['quiet']
-		Options.verbose = args['verbose']
-		Options.limitToConsoleWidth = args['limit_to_console_width']
-
-		if Options.limitToConsoleWidth:
-			Options.consoleWidth = int(os.popen('stty size', 'r').read().split()[1])
+		opts = vars(Options.argParser.parse_args(arguments))
+		Options.delete = opts['delete']
+		Options.quiet = opts['quiet']
+		Options.verbose = opts['verbose']
+		Options.limitToConsoleWidth = opts['limit_to_console_width']
 
 		currentDownloadArgs = []
-		for arg in args['download']:
+		for arg in opts['download']:
 			if arg == '-':
 				Options.parseDownload(currentDownloadArgs)
 				currentDownloadArgs = []
