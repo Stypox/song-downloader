@@ -2,7 +2,7 @@
 Downloads an entire youtube playlist (or single videos) in **mp3 format**, **deducing** and saving **artist**, **name**, **remixer**, **tracknumber**... If the song has already been downloaded updates only its metadata.  
 
 **Only the audio data is downloaded**.
-##### I downloaded a ~150 songs playlist and it worked fine. I also developed an [mp3-player](https://gitlab.com/Stypox/mp3-player), that can play playlists in order.
+##### I downloaded a ~150 songs playlist and it worked fine. I also developed an [mp3-player](https://github.com/Stypox/mp3-player), that can play playlists in order and save favourites.
 
 # [ID3 metadata](https://en.wikipedia.org/wiki/ID3) and title parsing
 Imagine a playlist (id ``1234567890abcdefghijklmnopqrstuvwx``) whose second video (id ``0a1b2c3d4e5``) is titled<br/>``ArtistName feat. Ft1 | SongName [Rel release](Remixer ft. Ft2 remix)``. The filename would be ``ArtistName feat. Ft1 | SongName [Rel release](Remixer ft. Ft2 remix)_0a1b2c3d4e5.mp3`` and the song's ID3 metadata would be:
