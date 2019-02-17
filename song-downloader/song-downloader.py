@@ -94,6 +94,11 @@ class Song:
 		featMatch = re.search("[;,]?[ ][Ff]([Ee][Aa])?[Tt]", self.remixer)
 		if featMatch is not None:
 			self.remixer = self.remixer[:featMatch.start()]
+
+		#removes inverted commas that sorround the title
+		invertedCommas = "'ʹʼˈ́ ׳′ꞌ\"″ʺ”〃〞“❝〝"
+		if self.title[0] in invertedCommas and self.title[-1] in invertedCommas:
+			self.title = self.title[1:-1]
 	def composeFilename(self, videoId, videoTitle, validDirectory):
 		Song.composeFilename.invalidChars = "<>:\"/\\|?*"
 		Song.composeFilename.validCharsMin = 31 #chr(31)
