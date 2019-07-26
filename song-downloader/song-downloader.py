@@ -386,6 +386,9 @@ if __name__ == "__main__":
 				os.remove(filename)
 
 		removeIfExists(YDL_FILENAME % {'ext': 'mp3'})
+		removeIfExists(YDL_FILENAME % {'ext': 'mp3.part'})
+		removeIfExists(YDL_FILENAME % {'ext': 'mp4'})
+		removeIfExists(YDL_FILENAME % {'ext': 'mp4.part'})
 		removeIfExists(YDL_FILENAME % {'ext': 'webm'})
 		removeIfExists(YDL_FILENAME % {'ext': 'webm.part'})
 		removeIfExists(YDL_FILENAME % {'ext': 'm4a'})
