@@ -50,7 +50,7 @@ Here "ID" represents the playlist or video id/url; "DIRECTORY" is **optional**, 
 After the process finishes the folders ``my_songs`` (containing ``Jim Yosef - Smile [Fairytale]_z-teFykRk0Y.mp3``) and ``PLR0fgOhCSN8ilC2GWuPkipy8FRNp-m-7C`` (containing the playlist) should be in the **directory the script is executed in**. 
 
 # Dependencies
-* Requires either **[Python 3.6.x](https://www.python.org/downloads/)** or **[Python 3.7.x](https://www.python.org/downloads/)** (I didn't test older versions, but newer ones may work).
+* Requires either **[Python 3.6+](https://www.python.org/downloads/)** (older versions have not been tested).
 * Install dependencies from [requirements.txt](requirements.txt) using this command: `python3 -m pip install -r requirements.txt`  
 It will install the following [`pip`](https://packaging.python.org/tutorials/installing-packages/) **modules**: [youtube-dl](https://pypi.org/project/youtube_dl/); [mutagen](https://pypi.org/project/mutagen/).
 
