@@ -112,7 +112,7 @@ class Song:
 			self.filename = Song.invalidFilename % videoId
 		else:
 			self.filename = self.filename + "_" + videoId + ".mp3"
-		self.path = validDirectory + self.filename 
+		self.path = validDirectory + self.filename
 	def isValid(self):
 		try: EasyID3(self.path)
 		except: return False
@@ -282,7 +282,7 @@ class Options:
 		log(LogLevel.info, "Playlists:", cls.playlists)
 		for playlist in cls.playlists:
 			playlist.logVideos()
-		
+
 	@classmethod
 	def parseDownload(cls, downloadArgs):
 		log(LogLevel.debug, "Parsing download arguments %s" % downloadArgs)
@@ -299,7 +299,11 @@ class Options:
 
 		with ydl:
 			info = ydl.extract_info(id, download=False, process=False)
-			if 'entries' in info:
+			if info["_type"] == "url":
+				# nothing was extracted but the url, go one step deeper
+				info = ydl.extract_info(info["url"], ie_key=info.get("ie_key"), download=False, process=False)
+
+			if info["_type"] == "playlist":
 				cls.playlists.append(Playlist(info, directory))
 				log(LogLevel.debug, "Gotten playlist \"%s\" at \"%s\"" % (cls.playlists[-1], cls.playlists[-1].directory))
 			else:
@@ -333,7 +337,7 @@ def log(level, *args, **kwargs):
 					toPrint = "[warning] "
 				else:
 					return
-					
+
 				firstTime = True
 				for arg in args:
 					if firstTime:
@@ -363,24 +367,20 @@ def log(level, *args, **kwargs):
 					print("[warning]", *args, **kwargs)
 
 def main(arguments):
-	#arguments
-	Options.parse(arguments)
-
-	#downloading
-	if len(Options.videos) == 0 and len(Options.playlists) == 0:
-		log(LogLevel.warning, "Nothing has been provided to download")
-	for video in Options.videos:
-		video.updateFile()
-		video.download()
-		video.saveMetadata()
-	for playlist in Options.playlists:
-		playlist.download()
-
-
-if __name__ == "__main__":
 	try:
-		main(sys.argv)
-	except:
+		#arguments
+		Options.parse(arguments)
+
+		#downloading
+		if len(Options.videos) == 0 and len(Options.playlists) == 0:
+			log(LogLevel.warning, "Nothing has been provided to download")
+		for video in Options.videos:
+			video.updateFile()
+			video.download()
+			video.saveMetadata()
+		for playlist in Options.playlists:
+			playlist.download()
+	finally:
 		def removeIfExists(filename):
 			if os.path.isfile(filename):
 				os.remove(filename)
@@ -396,4 +396,5 @@ if __name__ == "__main__":
 		removeIfExists(YDL_FILENAME % {'ext': 'ytdl'})
 		removeIfExists(YDL_FILENAME % {'ext': 'ytdl.part'})
 
-		raise
+if __name__ == "__main__":
+	main(sys.argv)
