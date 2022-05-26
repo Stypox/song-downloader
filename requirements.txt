@@ -1,2 +1,2 @@
-youtube_dl
+yt-dlp
 mutagen

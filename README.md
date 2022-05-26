@@ -36,7 +36,7 @@ In the directory the script is executed in create a file named ``song-downloader
 
 ## Passing ids as command line arguments
 **Open a terminal** and navigate to the "DIRECTORY" the python script is in (run ``cd DIRECTORY``). Then run ``python3 FILENAME OPTIONS ARGUMENTS`` (*) replacing "FILENAME" with the name of the script. "OPTIONS" are some options for the script, such as ``--delete`` to delete songs that have been removed from the playlists; learn more about them by running in the terminal ``python3 FILENAME --help``. "ARGUMENTS" is the list of **videos/playlists to be downloaded** and must be formatted this way:
-  
+
     ID [DIRECTORY] - ID [DIRECTORY] - ... - ID [DIRECTORY]
 
 Here "ID" represents the playlist or video id/url; "DIRECTORY" is **optional**, represents the directory in which to save the song(s), and defaults to ``./`` for videos and ``./ID/`` for playlists. If a path contains spaces, you have to sorround it with ``"``. For example (command line commands):
@@ -52,10 +52,10 @@ After the process finishes the folders ``my_songs`` (containing ``Jim Yosef - Sm
 # Dependencies
 * Requires either **[Python 3.6+](https://www.python.org/downloads/)** (older versions have not been tested).
 * Install dependencies from [requirements.txt](requirements.txt) using this command: `python3 -m pip install -r requirements.txt`  
-It will install the following [`pip`](https://packaging.python.org/tutorials/installing-packages/) **modules**: [youtube-dl](https://pypi.org/project/youtube_dl/); [mutagen](https://pypi.org/project/mutagen/).
+It will install the following [`pip`](https://packaging.python.org/tutorials/installing-packages/) **modules**: [yt-dlp](https://pypi.org/project/yt_dlp/); [mutagen](https://pypi.org/project/mutagen/).
 
 # Notes and known issues
-* The songs are downloaded at the **highest possible quality**. youtube_dl.YoutubeDL is set up to download the best format that Youtube provides ("bestaudio/best")
+* The songs are downloaded at the **highest possible quality**. yt_dlp.YoutubeDL is set up to download the best format that Youtube provides ("bestaudio/best")
 * To check if a song has already been downloaded uses the **video id** saved at the end of the filename, **not its file name**.
 * Automatically **renames** files whose corresponding video changed name.
 * Video ids and playlist ids are automatically distinguished, but if an id refers both to a playlist and to a video **only the playlist** is downloaded.

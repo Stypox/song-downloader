@@ -8,7 +8,7 @@ import argparse
 import enum
 
 #getting info and downloading
-import youtube_dl
+import yt_dlp as youtube_dl
 
 #saving/editing mp3 tags
 from mutagen.easyid3 import EasyID3
